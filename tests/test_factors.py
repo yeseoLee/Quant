@@ -12,7 +12,7 @@ def sample_ohlcv():
     """Create sample OHLCV data for testing."""
     np.random.seed(42)
     n = 100
-    dates = pd.date_range("2024-01-01", periods=n, freq="D")
+    dates = pd.date_range("2026-01-01", periods=n, freq="D")
 
     close = 100 + np.cumsum(np.random.randn(n) * 2)
     high = close + np.abs(np.random.randn(n))

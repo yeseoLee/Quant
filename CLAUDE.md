@@ -9,16 +9,21 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 uv sync --all-extras          # All dependencies including dev
 uv sync                       # Production only
 
-# Code quality
+# Code quality (or use: make format, make lint, make check)
 uv run ruff format src tests  # Format code
 uv run ruff check --fix src tests  # Lint and auto-fix
 uv run ruff check src tests   # Lint only (no fix)
 
-# Testing
+# Testing (or use: make test)
 uv run pytest                 # Run all tests with coverage
 uv run pytest tests/test_factors.py::TestRSI  # Run specific test class
 uv run pytest -k "test_calculate"  # Run tests matching pattern
 ```
+
+## Code Style
+
+- Line length: 100 characters
+- Python 3.12+ required
 
 ## Architecture
 

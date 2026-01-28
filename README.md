@@ -107,7 +107,7 @@ print(f"KOSPI 200 종목 수: {len(symbols)}")
 
 # 삼성전자 주가 데이터 수집
 fetcher = DataFetcher()
-df = fetcher.get_stock_data("005930", start_date="2024-01-01")
+df = fetcher.get_stock_data("005930", start_date="2026-01-01")
 print(df.head())
 ```
 
