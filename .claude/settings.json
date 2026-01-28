@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git add -A && git diff --cached --quiet || git commit -m \"Auto-commit by Claude at $(date '+%Y-%m-%d %H:%M:%S')\""
+          }
+        ]
+      }
+    ]
+  }
+}
