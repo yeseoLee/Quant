@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+
+{% block title %}분석 히스토리 - Korean Stock Quant{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="bi bi-clock-history"></i> 분석 히스토리</h2>
+
+    {% if history %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>분석일시</th>
+                    <th>종목코드</th>
+                    <th>종목명</th>
+                    <th>지표</th>
+                    <th>신호</th>
+                    <th>신호일자</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in history %}
+                <tr>
+                    <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <a href="{% url 'stocks:stock_detail' item.symbol %}">{{ item.symbol }}</a>
+                    </td>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.get_indicator_display }}</td>
+                    <td>
+                        {% if item.signal == 1 %}
+                        <span class="badge bg-success">매수</span>
+                        {% elif item.signal == -1 %}
+                        <span class="badge bg-danger">매도</span>
+                        {% else %}
+                        <span class="badge bg-secondary">관망</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ item.signal_date|date:"Y-m-d" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    {% if page_obj.has_other_pages %}
+    <nav aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}">이전</a>
+            </li>
+            {% endif %}
+
+            {% for num in page_obj.paginator.page_range %}
+            {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+            {% endif %}
+            {% endfor %}
+
+            {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}">다음</a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> 분석 히스토리가 없습니다. 종목을 분석하면 여기에 기록됩니다.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

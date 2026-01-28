@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}회원가입 - Korean Stock Quant{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0"><i class="bi bi-person-plus"></i> 회원가입</h4>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    {{ form|crispy }}
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-success">가입하기</button>
+                    </div>
+                </form>
+            </div>
+            <div class="card-footer text-center">
+                <small>이미 계정이 있으신가요? <a href="{% url 'accounts:login' %}">로그인</a></small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

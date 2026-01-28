@@ -1,0 +1,227 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ stock_name }} ({{ symbol }}) - Korean Stock Quant{% endblock %}
+
+{% block extra_css %}
+<style>
+    #chart-container {
+        height: 500px;
+        background: #ffffff;
+        border-radius: 8px;
+    }
+    #volume-chart-container, #rsi-chart-container, #stoch-chart-container {
+        height: 150px;
+        background: #ffffff;
+        border-radius: 8px;
+        margin-top: 10px;
+    }
+    .indicator-panel {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 15px;
+    }
+    .signal-buy {
+        color: #28a745;
+    }
+    .signal-sell {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-3">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-0">
+                        {{ stock_name }}
+                        <small class="text-muted">({{ symbol }})</small>
+                    </h2>
+                </div>
+                <div>
+                    {% if user.is_authenticated %}
+                        {% if in_watchlist %}
+                        <form method="post" action="{% url 'stocks:remove_from_watchlist' symbol %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-warning">
+                                <i class="bi bi-star-fill"></i> 관심종목에서 삭제
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{% url 'stocks:add_to_watchlist' symbol %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-warning">
+                                <i class="bi bi-star"></i> 관심종목 추가
+                            </button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Chart Area -->
+        <div class="col-lg-9">
+            <div class="card mb-3">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span><i class="bi bi-graph-up"></i> 차트</span>
+                        <div id="loading-indicator" class="spinner-border spinner-border-sm text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div id="chart-container"></div>
+                    <div id="volume-chart-container"></div>
+                    <div id="rsi-chart-container" style="display: none;"></div>
+                    <div id="stoch-chart-container" style="display: none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="col-lg-3">
+            <!-- Indicator Selection -->
+            <div class="card mb-3">
+                <div class="card-header bg-primary text-white">
+                    <i class="bi bi-sliders"></i> 지표 설정
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="toggleRSI">
+                        <label class="form-check-label" for="toggleRSI">
+                            <strong>RSI</strong>
+                            <small class="text-muted d-block">Relative Strength Index</small>
+                        </label>
+                    </div>
+
+                    <div id="rsi-params" class="mb-3 ps-4" style="display: none;">
+                        <div class="mb-2">
+                            <label class="form-label small">Period</label>
+                            <input type="number" class="form-control form-control-sm" id="rsiPeriod" value="14" min="2" max="50">
+                        </div>
+                        <div class="row">
+                            <div class="col-6">
+                                <label class="form-label small">Overbought</label>
+                                <input type="number" class="form-control form-control-sm" id="rsiOverbought" value="70" min="50" max="100">
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label small">Oversold</label>
+                                <input type="number" class="form-control form-control-sm" id="rsiOversold" value="30" min="0" max="50">
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="toggleBB">
+                        <label class="form-check-label" for="toggleBB">
+                            <strong>Bollinger Bands</strong>
+                            <small class="text-muted d-block">볼린저 밴드</small>
+                        </label>
+                    </div>
+
+                    <div id="bb-params" class="mb-3 ps-4" style="display: none;">
+                        <div class="mb-2">
+                            <label class="form-label small">Period</label>
+                            <input type="number" class="form-control form-control-sm" id="bbPeriod" value="20" min="5" max="50">
+                        </div>
+                        <div>
+                            <label class="form-label small">Std Dev</label>
+                            <input type="number" class="form-control form-control-sm" id="bbStdDev" value="2" min="1" max="4" step="0.5">
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="toggleStoch">
+                        <label class="form-check-label" for="toggleStoch">
+                            <strong>Stochastic</strong>
+                            <small class="text-muted d-block">스토캐스틱</small>
+                        </label>
+                    </div>
+
+                    <div id="stoch-params" class="mb-3 ps-4" style="display: none;">
+                        <div class="mb-2">
+                            <label class="form-label small">%K Period</label>
+                            <input type="number" class="form-control form-control-sm" id="stochK" value="14" min="2" max="50">
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small">%D Period</label>
+                            <input type="number" class="form-control form-control-sm" id="stochD" value="3" min="1" max="20">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Signal Settings -->
+            <div class="card mb-3">
+                <div class="card-header bg-success text-white">
+                    <i class="bi bi-bell"></i> 매매 신호
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" id="toggleSignals">
+                        <label class="form-check-label" for="toggleSignals">신호 표시</label>
+                    </div>
+
+                    <div id="signal-indicator-select" class="mb-3" style="display: none;">
+                        <label class="form-label small">신호 지표</label>
+                        <select class="form-select form-select-sm" id="signalIndicator">
+                            <option value="RSI">RSI</option>
+                            <option value="BB">Bollinger Bands</option>
+                            <option value="STOCH">Stochastic</option>
+                        </select>
+                    </div>
+
+                    <div id="signals-list" class="mt-3" style="display: none;">
+                        <h6 class="border-bottom pb-2">최근 신호</h6>
+                        <div id="signals-content">
+                            <!-- Signals will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Time Range -->
+            <div class="card">
+                <div class="card-header bg-secondary text-white">
+                    <i class="bi bi-calendar"></i> 기간
+                </div>
+                <div class="card-body">
+                    <select class="form-select" id="timeRange">
+                        <option value="3m">3개월</option>
+                        <option value="6m">6개월</option>
+                        <option value="1y" selected>1년</option>
+                        <option value="2y">2년</option>
+                        <option value="5y">5년</option>
+                        <option value="10y">10년</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Lightweight Charts -->
+<script src="https://unpkg.com/lightweight-charts@4.1.0/dist/lightweight-charts.standalone.production.js"></script>
+
+{% load static %}
+<script src="{% static 'js/chart.js' %}"></script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const symbol = '{{ symbol }}';
+        initChart(symbol);
+    });
+</script>
+{% endblock %}

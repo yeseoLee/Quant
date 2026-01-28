@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+
+{% block title %}관심종목 - Korean Stock Quant{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4"><i class="bi bi-star"></i> 관심종목</h2>
+
+    {% if watchlist %}
+    <div class="table-responsive">
+        <table class="table table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>종목코드</th>
+                    <th>종목명</th>
+                    <th>메모</th>
+                    <th>추가일</th>
+                    <th>액션</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in watchlist %}
+                <tr>
+                    <td>
+                        <a href="{% url 'stocks:stock_detail' item.symbol %}">{{ item.symbol }}</a>
+                    </td>
+                    <td>{{ item.name }}</td>
+                    <td>{{ item.notes|default:"-" }}</td>
+                    <td>{{ item.created_at|date:"Y-m-d H:i" }}</td>
+                    <td>
+                        <form method="post" action="{% url 'accounts:watchlist_delete' item.pk %}" class="d-inline">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                    onclick="return confirm('삭제하시겠습니까?');">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> 관심종목이 없습니다. 종목 상세 페이지에서 관심종목에 추가할 수 있습니다.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
