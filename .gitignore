@@ -62,3 +62,9 @@ data/cache/
 # OS
 .DS_Store
 Thumbs.db
+
+# Django
+web/db.sqlite3
+web/staticfiles/
+web/media/
+*.log

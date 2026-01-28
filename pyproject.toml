@@ -8,6 +8,7 @@ dependencies = [
     # Data Fetching
     "finance-datareader>=0.9.0",
     "yfinance>=0.2.0",
+    "pykrx>=1.0.0",
 
     # Data Processing
     "pandas>=2.0.0",
@@ -35,6 +36,11 @@ dev = [
     "ipykernel>=6.29.0",
     "jupyter>=1.0.0",
 ]
+web = [
+    "django>=5.0",
+    "django-crispy-forms>=2.0",
+    "crispy-bootstrap5>=0.7",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -46,7 +52,7 @@ packages = ["src/quant"]
 [tool.ruff]
 target-version = "py312"
 line-length = 100
-src = ["src", "tests"]
+src = ["src", "tests", "web"]
 
 [tool.ruff.lint]
 select = [
