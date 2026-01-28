@@ -1,0 +1,148 @@
+/* Korean Stock Quant - Custom Styles */
+
+/* Base */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* Navigation */
+.navbar-brand {
+    font-weight: bold;
+}
+
+#searchResults {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+#searchResults.show {
+    display: block;
+}
+
+/* Cards */
+.card {
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.card:hover {
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+.card a.card {
+    border: 1px solid #dee2e6;
+}
+
+.card a.card:hover {
+    border-color: #0d6efd;
+    background-color: #f8f9fa;
+}
+
+/* Charts */
+#chart-container,
+#rsi-chart-container,
+#stoch-chart-container {
+    overflow: hidden;
+}
+
+/* Tables */
+.table th {
+    white-space: nowrap;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* Signals */
+.signal-marker-buy {
+    color: #28a745;
+}
+
+.signal-marker-sell {
+    color: #dc3545;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    #searchForm {
+        width: 100% !important;
+        margin: 10px 0;
+    }
+
+    .navbar-nav {
+        margin-top: 10px;
+    }
+}
+
+/* Loading states */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+
+/* Indicator controls */
+.indicator-params {
+    border-left: 3px solid #0d6efd;
+    padding-left: 10px;
+    margin-left: 10px;
+}
+
+/* Form controls in dark mode chart */
+.form-check-input:checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* Badge improvements */
+.badge {
+    font-weight: 500;
+}
+
+/* Alert customization */
+.alert {
+    border: none;
+}
+
+/* Footer */
+footer {
+    margin-top: auto;
+}
+
+/* Dashboard quick action buttons */
+.btn-lg.py-4 {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* List group hover effects */
+.list-group-item-action:hover {
+    background-color: #f8f9fa;
+}
+
+/* Table row click effect */
+.table-hover tbody tr:hover {
+    cursor: pointer;
+    background-color: #f1f3f5 !important;
+}
