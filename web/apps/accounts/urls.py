@@ -1,0 +1,20 @@
+"""URL configuration for accounts app."""
+
+from django.urls import path
+
+from . import views
+
+app_name = "accounts"
+
+urlpatterns = [
+    path("login/", views.UserLoginView.as_view(), name="login"),
+    path("logout/", views.UserLogoutView.as_view(), name="logout"),
+    path("register/", views.UserRegisterView.as_view(), name="register"),
+    path("watchlist/", views.WatchlistView.as_view(), name="watchlist"),
+    path(
+        "watchlist/<int:pk>/delete/",
+        views.WatchlistDeleteView.as_view(),
+        name="watchlist_delete",
+    ),
+    path("history/", views.AnalysisHistoryView.as_view(), name="history"),
+]
