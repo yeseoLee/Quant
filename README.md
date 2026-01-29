@@ -224,6 +224,8 @@ fitted, forecast = lppl.forecast(prices, forecast_days=60)
 
 ## 향후 계획
 
+- [ ] CCI
+- [ ] Williams
 - [ ] MACD 지표 추가
 - [ ] 이동평균 크로스오버 전략
 - [ ] 가치 팩터 (PER, PBR, ROE)
