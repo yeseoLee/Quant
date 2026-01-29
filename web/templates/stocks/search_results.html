@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+
+{% block title %}검색 결과: {{ query }} - Korean Stock Quant{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="mb-3">
+                <i class="bi bi-search"></i> 검색 결과
+                {% if query %}
+                <small class="text-muted">: "{{ query }}"</small>
+                {% endif %}
+            </h2>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle"></i> 검색 중 오류가 발생했습니다: {{ error }}
+    </div>
+    {% elif not query or query|length < 2 %}
+    <div class="alert alert-warning">
+        <i class="bi bi-info-circle"></i> 검색어를 2자 이상 입력해주세요.
+    </div>
+    {% elif results %}
+    <div class="card">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-list-ul"></i> {{ results|length }}개의 종목을 찾았습니다
+            </h5>
+        </div>
+        <div class="list-group list-group-flush">
+            {% for stock in results %}
+            <a href="{% url 'stocks:stock_detail' stock.symbol %}"
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">
+                        <span class="badge bg-secondary">{{ stock.symbol }}</span>
+                        <strong class="ms-2">{{ stock.name }}</strong>
+                    </h6>
+                </div>
+                <i class="bi bi-chevron-right text-muted"></i>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> "{{ query }}"에 대한 검색 결과가 없습니다.
+        <div class="mt-3">
+            <p class="mb-2"><strong>검색 팁:</strong></p>
+            <ul>
+                <li>종목코드(예: 005930) 또는 종목명(예: 삼성전자)으로 검색하세요</li>
+                <li>정확한 철자를 확인하세요</li>
+                <li>KOSPI 200 종목만 지원됩니다</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Quick Access to Popular Stocks -->
+    <div class="card mt-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0">
+                <i class="bi bi-star"></i> 인기 종목 바로가기
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4 mb-2">
+                    <a href="{% url 'stocks:stock_detail' '005930' %}" class="btn btn-outline-primary w-100">
+                        <i class="bi bi-graph-up"></i> 삼성전자 (005930)
+                    </a>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <a href="{% url 'stocks:stock_detail' '000660' %}" class="btn btn-outline-success w-100">
+                        <i class="bi bi-graph-up"></i> SK하이닉스 (000660)
+                    </a>
+                </div>
+                <div class="col-md-4 mb-2">
+                    <a href="{% url 'stocks:screener' %}" class="btn btn-outline-warning w-100">
+                        <i class="bi bi-funnel"></i> 스크리너 이용
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="mt-4">
+        <a href="{% url 'stocks:dashboard' %}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> 대시보드로 돌아가기
+        </a>
+    </div>
+</div>
+{% endblock %}

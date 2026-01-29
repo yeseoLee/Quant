@@ -78,6 +78,30 @@ class ScreenerView(TemplateView):
         return context
 
 
+class SearchResultsView(TemplateView):
+    """Stock search results view."""
+
+    template_name = "stocks/search_results.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        query = self.request.GET.get("q", "").strip()
+        context["query"] = query
+
+        if query and len(query) >= 2:
+            service = StockService()
+            try:
+                results = service.search_stocks(query)
+                context["results"] = results
+            except Exception as e:
+                context["results"] = []
+                context["error"] = str(e)
+        else:
+            context["results"] = []
+
+        return context
+
+
 @login_required
 def add_to_watchlist(request, symbol):
     """Add stock to user's watchlist."""

@@ -169,7 +169,7 @@
                 e.preventDefault();
                 const query = searchInput.value.trim();
                 if (query.length >= 2) {
-                    window.location.href = `/stock/${query}/`;
+                    window.location.href = `/search-results/?q=${encodeURIComponent(query)}`;
                 }
             });
 

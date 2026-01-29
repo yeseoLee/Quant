@@ -8,6 +8,7 @@ app_name = "stocks"
 
 urlpatterns = [
     path("", views.DashboardView.as_view(), name="dashboard"),
+    path("search-results/", views.SearchResultsView.as_view(), name="search_results"),
     path("stock/<str:symbol>/", views.StockDetailView.as_view(), name="stock_detail"),
     path("screener/", views.ScreenerView.as_view(), name="screener"),
     path(
