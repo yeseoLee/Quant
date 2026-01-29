@@ -3,7 +3,9 @@ name = "quant"
 version = "0.1.0"
 description = "Korean Stock Market Quantitative Investment Analysis"
 readme = "README.md"
-requires-python = ">=3.12"
+# NOTE: numba/llvmlite wheels lag behind CPython pre-releases/new majors.
+# Pin an upper bound so `uv sync` doesn't pick an unsupported interpreter (e.g. 3.14).
+requires-python = ">=3.12,<3.14"
 dependencies = [
     # Data Fetching
     "finance-datareader>=0.9.0",
