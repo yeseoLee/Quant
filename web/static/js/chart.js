@@ -626,8 +626,21 @@ async function analyzeBubble() {
 
     } catch (error) {
         const bubbleState = document.getElementById('bubbleState');
+        const bubbleDetails = document.getElementById('bubbleDetails');
         bubbleState.className = 'alert alert-danger';
-        bubbleState.innerHTML = `<strong>오류:</strong> ${error.message}`;
+        bubbleState.innerHTML = `
+            <strong><i class="bi bi-exclamation-triangle"></i> 분석 실패</strong>
+            <p class="mb-0 mt-2">${error.message}</p>
+        `;
+        bubbleDetails.innerHTML = `
+            <h6 class="border-bottom pb-2">문제 해결 방법</h6>
+            <ul class="small">
+                <li>최근 급등한 종목에서 더 잘 작동합니다</li>
+                <li>최소 6개월~1년 이상의 데이터가 필요합니다</li>
+                <li>횡보하는 종목보다는 추세가 뚜렷한 종목에 적합합니다</li>
+                <li>다른 종목이나 시간대를 시도해보세요</li>
+            </ul>
+        `;
         bubbleResults.style.display = 'block';
     } finally {
         bubbleLoading.style.display = 'none';

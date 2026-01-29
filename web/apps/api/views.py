@@ -184,11 +184,20 @@ class BubbleAnalysisView(View):
             result = service.analyze_bubble(symbol, start_date, end_date)
             return JsonResponse(result)
         except ValueError as e:
-            return JsonResponse({"error": str(e)}, status=400)
+            return JsonResponse(
+                {"error": f"데이터 부족: {str(e)}"},
+                status=400
+            )
         except RuntimeError as e:
-            return JsonResponse({"error": str(e)}, status=500)
+            return JsonResponse(
+                {"error": str(e)},
+                status=422  # Unprocessable Entity
+            )
         except Exception as e:
-            return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
+            return JsonResponse(
+                {"error": f"예상치 못한 오류가 발생했습니다: {str(e)}"},
+                status=500
+            )
 
 
 class WatchlistAPIView(View):

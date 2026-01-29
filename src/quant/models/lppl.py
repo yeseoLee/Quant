@@ -62,7 +62,7 @@ class LPPL:
 
         return A + B * (dt ** m) + C * (dt ** m) * np.cos(omega * np.log(dt) + phi)
 
-    def fit(self, prices: pd.Series, max_iter: int = 2000) -> Dict[str, float]:
+    def fit(self, prices: pd.Series, max_iter: int = 5000) -> Dict[str, float]:
         """
         Fit LPPL model to price data using differential evolution.
 
@@ -87,13 +87,15 @@ class LPPL:
 
         self.observations = len(t)
 
-        # Parameter bounds
+        # Dynamic parameter bounds based on data
+        price_range = log_prices.max() - log_prices.min()
+
         tc_min = t[-1] + 5
-        tc_max = t[-1] + 252 * 2  # Up to 2 years ahead
+        tc_max = min(t[-1] + 252 * 2, t[-1] + len(t))  # Up to 2 years or data length
 
         bounds = [
             (tc_min, tc_max),  # tc: critical time
-            (log_prices.min(), log_prices.max() * 2),  # A
+            (log_prices.min() - price_range, log_prices.max() + price_range),  # A
             (-2, 0),  # B (negative for bubble)
             (-1, 1),  # C
             (0.1, 0.9),  # m
@@ -107,8 +109,9 @@ class LPPL:
             try:
                 predicted = self.lppl_function(t, tc, A, B, C, m, omega, phi)
                 residuals = log_prices - predicted
-                return np.sum(residuals ** 2)
-            except (RuntimeWarning, FloatingPointError):
+                mse = np.sum(residuals ** 2) / len(residuals)
+                return mse
+            except (RuntimeWarning, FloatingPointError, ValueError):
                 return 1e10
 
         # Suppress warnings during optimization
@@ -123,11 +126,18 @@ class LPPL:
                 seed=42,
                 workers=1,
                 polish=True,
-                atol=1e-6,
-                tol=1e-6,
+                atol=1e-4,  # More relaxed tolerance
+                tol=1e-3,   # More relaxed tolerance
+                strategy='best1bin',
+                popsize=15,
+                mutation=(0.5, 1.5),
+                recombination=0.7,
             )
 
-        if result.success or result.fun < 1.0:
+        # More lenient success criteria
+        normalized_error = result.fun
+
+        if result.success or normalized_error < 0.1:  # Accept if MSE < 0.1
             self.fit_success = True
             tc, A, B, C, m, omega, phi = result.x
 
@@ -139,13 +149,17 @@ class LPPL:
                 "m": m,
                 "omega": omega,
                 "phi": phi,
-                "residual_error": result.fun,
+                "residual_error": normalized_error,
             }
 
             return self.params
         else:
             self.fit_success = False
-            raise RuntimeError(f"LPPL fitting failed: {result.message}")
+            raise RuntimeError(
+                f"LPPL fitting failed: {result.message}. "
+                f"Error: {normalized_error:.4f}. "
+                f"Try with more data or different time period."
+            )
 
     def predict(self, t: np.ndarray) -> np.ndarray:
         """
