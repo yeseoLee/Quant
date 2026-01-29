@@ -16,5 +16,4 @@ urlpatterns = [
         views.WatchlistDeleteView.as_view(),
         name="watchlist_delete",
     ),
-    path("history/", views.AnalysisHistoryView.as_view(), name="history"),
 ]

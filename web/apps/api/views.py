@@ -8,9 +8,8 @@ from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_GET, require_POST
+from django.views.decorators.http import require_GET
 
-from apps.accounts.models import AnalysisHistory
 from apps.stocks.services import StockService
 
 
@@ -168,48 +167,6 @@ def search_stocks(request):
     try:
         results = service.search_stocks(query)
         return JsonResponse({"results": results[:10]})
-    except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
-
-
-@login_required
-@require_POST
-def save_analysis(request):
-    """API endpoint to save analysis to history."""
-    try:
-        data = json.loads(request.body)
-        symbol = data.get("symbol")
-        name = data.get("name", symbol)
-        indicator = data.get("indicator")
-        parameters = data.get("parameters", {})
-        signal = data.get("signal", 0)
-        signal_date_str = data.get("signal_date")
-
-        if not symbol or not indicator:
-            return JsonResponse({"error": "symbol and indicator are required"}, status=400)
-
-        if signal_date_str:
-            signal_date = datetime.strptime(signal_date_str, "%Y-%m-%d").date()
-        else:
-            signal_date = datetime.now().date()
-
-        history = AnalysisHistory.objects.create(
-            user=request.user,
-            symbol=symbol,
-            name=name,
-            indicator=indicator,
-            parameters=parameters,
-            signal=signal,
-            signal_date=signal_date,
-        )
-
-        return JsonResponse({
-            "success": True,
-            "id": history.id,
-            "message": "분석이 저장되었습니다.",
-        })
-    except json.JSONDecodeError:
-        return JsonResponse({"error": "Invalid JSON"}, status=400)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 

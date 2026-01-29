@@ -3,7 +3,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
-from .models import AnalysisHistory, User, Watchlist
+from .models import User, Watchlist
 
 
 @admin.register(User)
@@ -19,13 +19,4 @@ class WatchlistAdmin(admin.ModelAdmin):
 
     list_display = ["user", "symbol", "name", "created_at"]
     list_filter = ["user"]
-    search_fields = ["symbol", "name"]
-
-
-@admin.register(AnalysisHistory)
-class AnalysisHistoryAdmin(admin.ModelAdmin):
-    """Analysis history admin."""
-
-    list_display = ["user", "symbol", "indicator", "signal", "signal_date", "created_at"]
-    list_filter = ["user", "indicator", "signal"]
     search_fields = ["symbol", "name"]

@@ -9,7 +9,7 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, DeleteView, ListView
 
 from .forms import LoginForm, RegisterForm
-from .models import AnalysisHistory, Watchlist
+from .models import Watchlist
 
 
 class UserLoginView(LoginView):
@@ -67,14 +67,3 @@ class WatchlistDeleteView(LoginRequiredMixin, DeleteView):
     def delete(self, request, *args, **kwargs):
         messages.success(request, "관심종목에서 삭제되었습니다.")
         return super().delete(request, *args, **kwargs)
-
-
-class AnalysisHistoryView(LoginRequiredMixin, ListView):
-    """User's analysis history view."""
-
-    template_name = "accounts/history.html"
-    context_object_name = "history"
-    paginate_by = 20
-
-    def get_queryset(self):
-        return AnalysisHistory.objects.filter(user=self.request.user)

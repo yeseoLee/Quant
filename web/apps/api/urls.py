@@ -25,6 +25,5 @@ urlpatterns = [
     # Search endpoint
     path("search/", views.search_stocks, name="search"),
     # User data endpoints
-    path("analysis/save/", views.save_analysis, name="save_analysis"),
     path("watchlist/", views.WatchlistAPIView.as_view(), name="watchlist"),
 ]
