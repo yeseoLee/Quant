@@ -212,20 +212,20 @@ class LPPL:
         # Calculate days until critical time
         days_to_tc = tc - current_index
 
-        # Bubble indicators
+        # Bubble indicators (convert to native Python bool for JSON serialization)
         indicators = {
             # Critical time is in reasonable future (5 days to 2 years)
-            "tc_in_range": 5 <= days_to_tc <= 504,
+            "tc_in_range": bool(5 <= days_to_tc <= 504),
             # B should be negative for bubble
-            "B_negative": B < 0,
+            "B_negative": bool(B < 0),
             # m should be in valid range
-            "m_valid": 0.1 <= m <= 0.9,
+            "m_valid": bool(0.1 <= m <= 0.9),
             # omega should indicate oscillations
-            "omega_valid": 2 <= omega <= 25,
+            "omega_valid": bool(2 <= omega <= 25),
         }
 
         # Calculate bubble confidence score (0-100)
-        confidence = sum(indicators.values()) / len(indicators) * 100
+        confidence = float(sum(indicators.values()) / len(indicators) * 100)
 
         # Classify bubble state
         if confidence >= 75 and days_to_tc < 60:
@@ -247,24 +247,24 @@ class LPPL:
             crash_date = prices.index[-1] + pd.Timedelta(days=int(days_to_tc))
 
         return {
-            "state": state,
-            "confidence": round(confidence, 2),
-            "message": message,
-            "days_to_critical": round(days_to_tc, 1),
+            "state": str(state),
+            "confidence": float(round(confidence, 2)),
+            "message": str(message),
+            "days_to_critical": float(round(days_to_tc, 1)),
             "critical_date": crash_date.strftime("%Y-%m-%d") if crash_date else None,
             "indicators": indicators,
             "parameters": {
-                "tc": round(tc, 2),
-                "A": round(self.params["A"], 4),
-                "B": round(B, 4),
-                "C": round(self.params["C"], 4),
-                "m": round(m, 4),
-                "omega": round(omega, 4),
-                "phi": round(self.params["phi"], 4),
+                "tc": float(round(tc, 2)),
+                "A": float(round(self.params["A"], 4)),
+                "B": float(round(B, 4)),
+                "C": float(round(self.params["C"], 4)),
+                "m": float(round(m, 4)),
+                "omega": float(round(omega, 4)),
+                "phi": float(round(self.params["phi"], 4)),
             },
             "fit_quality": {
-                "residual_error": round(self.params["residual_error"], 4),
-                "observations": self.observations,
+                "residual_error": float(round(self.params["residual_error"], 4)),
+                "observations": int(self.observations),
             },
         }
 
