@@ -6,6 +6,7 @@ import pandas as pd
 
 from quant.data import DataFetcher, Kospi200
 from quant.factors import RSI, BollingerBands, Stochastic
+from quant.models import LPPL
 
 from .models import StockCache, StockPrice
 from .sync_service import StockSyncService
@@ -438,3 +439,69 @@ class StockService:
                 values["stoch_d"] = round(float(row["stoch_d"]), 2)
 
         return values
+
+    def analyze_bubble(
+        self,
+        symbol: str,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict:
+        """
+        Analyze stock for bubble using LPPL model.
+
+        Args:
+            symbol: Stock ticker symbol
+            start_date: Start date (default: 2 years ago for better fitting)
+            end_date: End date (default: today)
+
+        Returns:
+            Dict with bubble diagnosis and LPPL model results
+        """
+        # Get at least 2 years of data for better LPPL fitting
+        if start_date is None:
+            start_date = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+
+        df = self.get_stock_data(symbol, start_date, end_date)
+
+        if df.empty or len(df) < 30:
+            raise ValueError("Insufficient data for LPPL analysis (need at least 30 days)")
+
+        # Extract closing prices
+        prices = df["close"]
+
+        # Fit LPPL model
+        lppl = LPPL()
+        try:
+            lppl.fit(prices)
+        except Exception as e:
+            raise RuntimeError(f"LPPL fitting failed: {str(e)}")
+
+        # Get bubble diagnosis
+        diagnosis = lppl.diagnose_bubble(prices)
+
+        # Get fitted and forecasted prices
+        fitted, forecast = lppl.forecast(prices, forecast_days=60)
+
+        # Format for JSON response
+        result = {
+            "symbol": symbol,
+            "analysis_period": {
+                "start": prices.index[0].strftime("%Y-%m-%d"),
+                "end": prices.index[-1].strftime("%Y-%m-%d"),
+                "days": len(prices),
+            },
+            "diagnosis": diagnosis,
+            "fitted_prices": self._series_to_chart_data(fitted),
+            "forecast_prices": self._series_to_chart_data(forecast),
+        }
+
+        return result
+
+    def _series_to_chart_data(self, series: pd.Series) -> list[dict]:
+        """Convert pandas Series to chart data format."""
+        data = []
+        for idx, value in series.items():
+            if pd.notna(value):
+                timestamp = idx.strftime("%Y-%m-%d") if hasattr(idx, "strftime") else str(idx)
+                data.append({"time": timestamp, "value": float(value)})
+        return data

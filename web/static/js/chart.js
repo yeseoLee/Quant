@@ -597,3 +597,150 @@ function clearSignalMarkers() {
         signalsContent.innerHTML = '';
     }
 }
+
+/**
+ * Analyze bubble using LPPL model
+ */
+let lpplFittedSeries = null;
+let lpplForecastSeries = null;
+
+async function analyzeBubble() {
+    const bubbleLoading = document.getElementById('bubbleLoading');
+    const bubbleResults = document.getElementById('bubbleResults');
+    const analyzeButton = document.getElementById('analyzeBubble');
+
+    // Show loading, hide results
+    bubbleLoading.style.display = 'block';
+    bubbleResults.style.display = 'none';
+    analyzeButton.disabled = true;
+
+    try {
+        const response = await fetch(`/api/stock/${currentSymbol}/bubble/`);
+        const data = await response.json();
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        displayBubbleResults(data);
+
+    } catch (error) {
+        const bubbleState = document.getElementById('bubbleState');
+        bubbleState.className = 'alert alert-danger';
+        bubbleState.innerHTML = `<strong>오류:</strong> ${error.message}`;
+        bubbleResults.style.display = 'block';
+    } finally {
+        bubbleLoading.style.display = 'none';
+        analyzeButton.disabled = false;
+    }
+}
+
+function displayBubbleResults(data) {
+    const bubbleState = document.getElementById('bubbleState');
+    const bubbleDetails = document.getElementById('bubbleDetails');
+    const bubbleResults = document.getElementById('bubbleResults');
+
+    const diagnosis = data.diagnosis;
+
+    // Set alert class based on state
+    const stateColors = {
+        'CRITICAL': 'alert-danger',
+        'WARNING': 'alert-warning',
+        'WATCH': 'alert-info',
+        'NORMAL': 'alert-success'
+    };
+
+    bubbleState.className = `alert ${stateColors[diagnosis.state] || 'alert-secondary'}`;
+    bubbleState.innerHTML = `
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <strong>${diagnosis.state}</strong>
+                <p class="mb-0 small">${diagnosis.message}</p>
+            </div>
+            <div class="text-end">
+                <div class="h3 mb-0">${diagnosis.confidence}%</div>
+                <small>신뢰도</small>
+            </div>
+        </div>
+    `;
+
+    // Display detailed information
+    bubbleDetails.innerHTML = `
+        <h6 class="border-bottom pb-2">진단 결과</h6>
+        <div class="small mb-3">
+            ${diagnosis.critical_date ? `
+                <div class="mb-1">
+                    <strong>예상 임계 시점:</strong>
+                    <span class="text-danger">${diagnosis.critical_date}</span>
+                    (${Math.round(diagnosis.days_to_critical)}일 후)
+                </div>
+            ` : ''}
+            <div class="mb-1">
+                <strong>분석 기간:</strong> ${data.analysis_period.days}일
+            </div>
+            <div class="mb-1">
+                <strong>적합 오차:</strong> ${diagnosis.fit_quality.residual_error.toFixed(4)}
+            </div>
+        </div>
+
+        <h6 class="border-bottom pb-2">LPPL 파라미터</h6>
+        <div class="small mb-3">
+            <div class="row">
+                <div class="col-6 mb-1"><strong>tc:</strong> ${diagnosis.parameters.tc}</div>
+                <div class="col-6 mb-1"><strong>m:</strong> ${diagnosis.parameters.m}</div>
+                <div class="col-6 mb-1"><strong>ω:</strong> ${diagnosis.parameters.omega}</div>
+                <div class="col-6 mb-1"><strong>B:</strong> ${diagnosis.parameters.B}</div>
+            </div>
+        </div>
+
+        <h6 class="border-bottom pb-2">지표 체크</h6>
+        <div class="small">
+            ${Object.entries(diagnosis.indicators).map(([key, value]) => `
+                <div class="mb-1">
+                    <i class="bi ${value ? 'bi-check-circle text-success' : 'bi-x-circle text-danger'}"></i>
+                    ${key}: ${value ? '통과' : '미달'}
+                </div>
+            `).join('')}
+        </div>
+    `;
+
+    // Add LPPL fitted line to chart
+    if (data.fitted_prices && data.fitted_prices.length > 0) {
+        // Remove existing LPPL lines
+        if (lpplFittedSeries) {
+            mainChart.removeSeries(lpplFittedSeries);
+        }
+        if (lpplForecastSeries) {
+            mainChart.removeSeries(lpplForecastSeries);
+        }
+
+        // Add fitted line
+        lpplFittedSeries = mainChart.addLineSeries({
+            color: 'rgba(156, 39, 176, 0.8)',
+            lineWidth: 2,
+            title: 'LPPL Fit',
+        });
+        lpplFittedSeries.setData(data.fitted_prices);
+
+        // Add forecast line if available
+        if (data.forecast_prices && data.forecast_prices.length > 0) {
+            lpplForecastSeries = mainChart.addLineSeries({
+                color: 'rgba(156, 39, 176, 0.5)',
+                lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+                title: 'LPPL Forecast',
+            });
+            lpplForecastSeries.setData(data.forecast_prices);
+        }
+    }
+
+    bubbleResults.style.display = 'block';
+}
+
+// Add event listener when document loads
+document.addEventListener('DOMContentLoaded', function() {
+    const analyzeBubbleBtn = document.getElementById('analyzeBubble');
+    if (analyzeBubbleBtn) {
+        analyzeBubbleBtn.addEventListener('click', analyzeBubble);
+    }
+});

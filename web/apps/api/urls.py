@@ -19,6 +19,11 @@ urlpatterns = [
         views.SignalsView.as_view(),
         name="signals",
     ),
+    path(
+        "stock/<str:symbol>/bubble/",
+        views.BubbleAnalysisView.as_view(),
+        name="bubble_analysis",
+    ),
     # KOSPI200 endpoints
     path("kospi200/", views.Kospi200ListView.as_view(), name="kospi200"),
     path("screener/run/", views.ScreenerView.as_view(), name="screener"),

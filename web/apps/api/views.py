@@ -171,6 +171,26 @@ def search_stocks(request):
         return JsonResponse({"error": str(e)}, status=500)
 
 
+class BubbleAnalysisView(View):
+    """API endpoint for LPPL bubble analysis."""
+
+    def get(self, request, symbol):
+        """Analyze stock for bubble using LPPL model."""
+        start_date = request.GET.get("start")
+        end_date = request.GET.get("end")
+
+        service = StockService()
+        try:
+            result = service.analyze_bubble(symbol, start_date, end_date)
+            return JsonResponse(result)
+        except ValueError as e:
+            return JsonResponse({"error": str(e)}, status=400)
+        except RuntimeError as e:
+            return JsonResponse({"error": str(e)}, status=500)
+        except Exception as e:
+            return JsonResponse({"error": f"Unexpected error: {str(e)}"}, status=500)
+
+
 class WatchlistAPIView(View):
     """API endpoint for watchlist operations."""
 
