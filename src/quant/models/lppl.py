@@ -36,6 +36,7 @@ class LPPL:
         self.params: Optional[Dict[str, float]] = None
         self.fit_success = False
         self.observations = 0
+        self.multi_window_results: Optional[list] = None
 
     @staticmethod
     def lppl_function(t: np.ndarray, tc: float, A: float, B: float, C: float,
@@ -333,3 +334,167 @@ class LPPL:
             forecast_series = pd.Series(dtype=float)
 
         return fitted, forecast_series
+
+    def _check_bubble_conditions(
+        self, params: Dict[str, float], current_index: int
+    ) -> bool:
+        """
+        Check if fitted parameters satisfy bubble conditions.
+
+        Args:
+            params: Fitted parameters
+            current_index: Current time index
+
+        Returns:
+            True if all bubble conditions are met
+        """
+        tc = params["tc"]
+        B = params["B"]
+        m = params["m"]
+        omega = params["omega"]
+        error = params["residual_error"]
+
+        days_to_tc = tc - current_index
+
+        # Filter conditions (must all be True for bubble)
+        conditions = [
+            5 <= days_to_tc <= 504,  # tc in reasonable future
+            B < 0,  # Negative B for bubble
+            0.1 <= m <= 0.9,  # Valid m range
+            2 <= omega <= 25,  # Valid omega range
+            error < 0.5,  # Good fit quality (MSE < 0.5)
+        ]
+
+        return all(conditions)
+
+    def fit_multi_window(
+        self,
+        prices: pd.Series,
+        min_window: int = 125,
+        max_window: int = 750,
+        step: int = 25,
+        max_iter: int = 2000,
+    ) -> Dict[str, any]:
+        """
+        Fit LPPL model on multiple time windows and calculate confidence.
+
+        This implements the LPPLS Confidence Indicator by fitting the model
+        on various historical windows and checking how many satisfy bubble conditions.
+
+        Args:
+            prices: Full price time series
+            min_window: Minimum window size in days (default: 125)
+            max_window: Maximum window size in days (default: 750)
+            step: Step size for window iteration (default: 25)
+            max_iter: Maximum iterations per fit (default: 2000)
+
+        Returns:
+            Dictionary with confidence indicator and detailed results
+        """
+        if len(prices) < min_window:
+            raise ValueError(
+                f"Need at least {min_window} data points. Got {len(prices)}."
+            )
+
+        # Adjust max_window if data is insufficient
+        actual_max_window = min(max_window, len(prices))
+
+        results = []
+        window_sizes = range(min_window, actual_max_window + 1, step)
+
+        total_attempts = 0
+        successful_fits = 0
+        bubble_conditions_met = 0
+
+        for window_size in window_sizes:
+            if window_size > len(prices):
+                break
+
+            # Extract window
+            window_prices = prices.iloc[-window_size:]
+
+            try:
+                # Create temporary LPPL instance for this window
+                lppl_temp = LPPL()
+                params = lppl_temp.fit(window_prices, max_iter=max_iter)
+
+                successful_fits += 1
+
+                # Check if this fit satisfies bubble conditions
+                current_index = window_size - 1
+                is_bubble = self._check_bubble_conditions(params, current_index)
+
+                if is_bubble:
+                    bubble_conditions_met += 1
+
+                results.append(
+                    {
+                        "window_size": int(window_size),
+                        "success": True,
+                        "is_bubble": bool(is_bubble),
+                        "params": {
+                            "tc": float(params["tc"]),
+                            "B": float(params["B"]),
+                            "m": float(params["m"]),
+                            "omega": float(params["omega"]),
+                            "error": float(params["residual_error"]),
+                        },
+                    }
+                )
+
+            except Exception as e:
+                results.append(
+                    {
+                        "window_size": int(window_size),
+                        "success": False,
+                        "is_bubble": False,
+                        "error": str(e),
+                    }
+                )
+
+            total_attempts += 1
+
+        # Calculate LPPLS Confidence Indicator
+        if successful_fits > 0:
+            confidence_indicator = (bubble_conditions_met / successful_fits) * 100
+        else:
+            confidence_indicator = 0.0
+
+        # Store results for inspection
+        self.multi_window_results = results
+
+        # Determine overall state based on confidence
+        if confidence_indicator >= 60:
+            state = "CRITICAL"
+            message = "다수의 시간 윈도우에서 버블 신호 - 높은 위험"
+        elif confidence_indicator >= 40:
+            state = "WARNING"
+            message = "상당수 시간 윈도우에서 버블 신호 - 주의 필요"
+        elif confidence_indicator >= 20:
+            state = "WATCH"
+            message = "일부 시간 윈도우에서 버블 신호 - 모니터링"
+        else:
+            state = "NORMAL"
+            message = "대부분의 윈도우에서 정상 패턴"
+
+        return {
+            "confidence_indicator": float(round(confidence_indicator, 2)),
+            "state": str(state),
+            "message": str(message),
+            "statistics": {
+                "total_windows": int(total_attempts),
+                "successful_fits": int(successful_fits),
+                "bubble_windows": int(bubble_conditions_met),
+                "success_rate": float(
+                    round((successful_fits / total_attempts) * 100, 2)
+                    if total_attempts > 0
+                    else 0
+                ),
+            },
+            "window_range": {
+                "min": int(min_window),
+                "max": int(actual_max_window),
+                "step": int(step),
+            },
+            "detailed_results": results,
+        }

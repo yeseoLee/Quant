@@ -447,49 +447,62 @@ class StockService:
         end_date: str | None = None,
     ) -> dict:
         """
-        Analyze stock for bubble using LPPL model.
+        Analyze stock for bubble using LPPL multi-window analysis.
+
+        Implements LPPLS Confidence Indicator by fitting LPPL on multiple
+        time windows (125-750 days) and calculating the proportion of fits
+        that satisfy bubble conditions.
 
         Args:
             symbol: Stock ticker symbol
-            start_date: Start date (default: 2 years ago for better fitting)
+            start_date: Start date (default: 3 years ago for multi-window)
             end_date: End date (default: today)
 
         Returns:
-            Dict with bubble diagnosis and LPPL model results
+            Dict with LPPLS confidence indicator and detailed results
         """
-        # Get at least 2 years of data for better LPPL fitting
+        # Get at least 3 years of data for multi-window analysis
         if start_date is None:
-            start_date = (datetime.now() - timedelta(days=730)).strftime("%Y-%m-%d")
+            start_date = (datetime.now() - timedelta(days=1095)).strftime("%Y-%m-%d")
 
         df = self.get_stock_data(symbol, start_date, end_date)
 
-        if df.empty or len(df) < 30:
-            raise ValueError("Insufficient data for LPPL analysis (need at least 30 days)")
+        if df.empty or len(df) < 125:
+            raise ValueError(
+                f"Insufficient data for LPPL multi-window analysis. "
+                f"Need at least 125 days, got {len(df)} days."
+            )
 
         # Extract closing prices
         prices = df["close"]
 
-        # Fit LPPL model
+        # Run multi-window LPPL analysis
         lppl = LPPL()
         try:
-            lppl.fit(prices, max_iter=3000)  # Reduced for faster response
-        except ValueError as e:
-            # Data insufficient
-            raise ValueError(f"데이터 부족: {str(e)}")
-        except RuntimeError as e:
-            # Fitting failed
-            raise RuntimeError(
-                f"LPPL 모델 피팅 실패: 해당 종목의 가격 패턴이 버블 모델과 맞지 않을 수 있습니다. "
-                f"다른 기간을 시도하거나 다른 종목을 분석해보세요."
+            # Multi-window analysis with LPPLS Confidence Indicator
+            confidence_result = lppl.fit_multi_window(
+                prices,
+                min_window=125,
+                max_window=750,
+                step=25,
+                max_iter=1500,  # Reduced for speed
             )
+
+            # Also fit on full data for visualization
+            try:
+                lppl.fit(prices, max_iter=2000)
+                fitted, forecast = lppl.forecast(prices, forecast_days=60)
+                has_fit = True
+            except Exception:
+                # If full fit fails, don't fail the entire analysis
+                fitted = pd.Series(dtype=float)
+                forecast = pd.Series(dtype=float)
+                has_fit = False
+
+        except ValueError as e:
+            raise ValueError(f"데이터 부족: {str(e)}")
         except Exception as e:
             raise RuntimeError(f"분석 중 오류 발생: {str(e)}")
-
-        # Get bubble diagnosis
-        diagnosis = lppl.diagnose_bubble(prices)
-
-        # Get fitted and forecasted prices
-        fitted, forecast = lppl.forecast(prices, forecast_days=60)
 
         # Format for JSON response
         result = {
@@ -499,9 +512,9 @@ class StockService:
                 "end": prices.index[-1].strftime("%Y-%m-%d"),
                 "days": len(prices),
             },
-            "diagnosis": diagnosis,
-            "fitted_prices": self._series_to_chart_data(fitted),
-            "forecast_prices": self._series_to_chart_data(forecast),
+            "confidence_indicator": confidence_result,
+            "fitted_prices": self._series_to_chart_data(fitted) if has_fit else [],
+            "forecast_prices": self._series_to_chart_data(forecast) if has_fit else [],
         }
 
         return result

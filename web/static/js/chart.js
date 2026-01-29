@@ -653,7 +653,8 @@ function displayBubbleResults(data) {
     const bubbleDetails = document.getElementById('bubbleDetails');
     const bubbleResults = document.getElementById('bubbleResults');
 
-    const diagnosis = data.diagnosis;
+    const confidence = data.confidence_indicator;
+    const stats = confidence.statistics;
 
     // Set alert class based on state
     const stateColors = {
@@ -663,58 +664,130 @@ function displayBubbleResults(data) {
         'NORMAL': 'alert-success'
     };
 
-    bubbleState.className = `alert ${stateColors[diagnosis.state] || 'alert-secondary'}`;
+    bubbleState.className = `alert ${stateColors[confidence.state] || 'alert-secondary'}`;
     bubbleState.innerHTML = `
         <div class="d-flex justify-content-between align-items-center">
             <div>
-                <strong>${diagnosis.state}</strong>
-                <p class="mb-0 small">${diagnosis.message}</p>
+                <strong>${confidence.state}</strong>
+                <p class="mb-0 small">${confidence.message}</p>
             </div>
             <div class="text-end">
-                <div class="h3 mb-0">${diagnosis.confidence}%</div>
-                <small>신뢰도</small>
+                <div class="h3 mb-0">${confidence.confidence_indicator}%</div>
+                <small>LPPLS Confidence</small>
             </div>
         </div>
     `;
 
     // Display detailed information
     bubbleDetails.innerHTML = `
-        <h6 class="border-bottom pb-2">진단 결과</h6>
+        <h6 class="border-bottom pb-2">
+            <i class="bi bi-graph-up"></i> Multi-Window Analysis
+        </h6>
         <div class="small mb-3">
-            ${diagnosis.critical_date ? `
-                <div class="mb-1">
-                    <strong>예상 임계 시점:</strong>
-                    <span class="text-danger">${diagnosis.critical_date}</span>
-                    (${Math.round(diagnosis.days_to_critical)}일 후)
-                </div>
-            ` : ''}
+            <div class="mb-2">
+                <strong>분석 방법:</strong> LPPLS Confidence Indicator<br>
+                <span class="text-muted">
+                    ${confidence.window_range.min}일~${confidence.window_range.max}일 구간을
+                    ${confidence.window_range.step}일 단위로 분석
+                </span>
+            </div>
             <div class="mb-1">
                 <strong>분석 기간:</strong> ${data.analysis_period.days}일
-            </div>
-            <div class="mb-1">
-                <strong>적합 오차:</strong> ${diagnosis.fit_quality.residual_error.toFixed(4)}
+                (${data.analysis_period.start} ~ ${data.analysis_period.end})
             </div>
         </div>
 
-        <h6 class="border-bottom pb-2">LPPL 파라미터</h6>
+        <h6 class="border-bottom pb-2">
+            <i class="bi bi-bar-chart"></i> 통계
+        </h6>
         <div class="small mb-3">
             <div class="row">
-                <div class="col-6 mb-1"><strong>tc:</strong> ${diagnosis.parameters.tc}</div>
-                <div class="col-6 mb-1"><strong>m:</strong> ${diagnosis.parameters.m}</div>
-                <div class="col-6 mb-1"><strong>ω:</strong> ${diagnosis.parameters.omega}</div>
-                <div class="col-6 mb-1"><strong>B:</strong> ${diagnosis.parameters.B}</div>
+                <div class="col-6 mb-2">
+                    <div class="text-muted small">총 윈도우</div>
+                    <div class="h5 mb-0">${stats.total_windows}</div>
+                </div>
+                <div class="col-6 mb-2">
+                    <div class="text-muted small">성공 피팅</div>
+                    <div class="h5 mb-0 text-success">${stats.successful_fits}</div>
+                </div>
+                <div class="col-6 mb-2">
+                    <div class="text-muted small">버블 조건 만족</div>
+                    <div class="h5 mb-0 text-danger">${stats.bubble_windows}</div>
+                </div>
+                <div class="col-6 mb-2">
+                    <div class="text-muted small">성공률</div>
+                    <div class="h5 mb-0">${stats.success_rate}%</div>
+                </div>
             </div>
         </div>
 
-        <h6 class="border-bottom pb-2">지표 체크</h6>
+        <h6 class="border-bottom pb-2">
+            <i class="bi bi-info-circle"></i> 해석
+        </h6>
         <div class="small">
-            ${Object.entries(diagnosis.indicators).map(([key, value]) => `
-                <div class="mb-1">
-                    <i class="bi ${value ? 'bi-check-circle text-success' : 'bi-x-circle text-danger'}"></i>
-                    ${key}: ${value ? '통과' : '미달'}
+            <p class="mb-2">
+                ${stats.successful_fits}개 윈도우 중 ${stats.bubble_windows}개(${confidence.confidence_indicator}%)가
+                버블 조건을 만족했습니다.
+            </p>
+            ${confidence.confidence_indicator >= 60 ? `
+                <div class="alert alert-danger alert-sm p-2 mb-2">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>위험:</strong> 대부분의 시간 윈도우에서 버블 신호가 감지되었습니다.
+                    포지션 축소 및 리스크 관리를 고려하세요.
                 </div>
-            `).join('')}
+            ` : confidence.confidence_indicator >= 40 ? `
+                <div class="alert alert-warning alert-sm p-2 mb-2">
+                    <i class="bi bi-exclamation-circle"></i>
+                    <strong>경고:</strong> 상당수 윈도우에서 버블 패턴이 관찰됩니다.
+                    주의 깊게 모니터링하세요.
+                </div>
+            ` : confidence.confidence_indicator >= 20 ? `
+                <div class="alert alert-info alert-sm p-2 mb-2">
+                    <i class="bi bi-info-circle"></i>
+                    <strong>모니터링:</strong> 일부 윈도우에서만 버블 신호가 있습니다.
+                    정기적으로 재분석하세요.
+                </div>
+            ` : `
+                <div class="alert alert-success alert-sm p-2 mb-2">
+                    <i class="bi bi-check-circle"></i>
+                    <strong>정상:</strong> 대부분의 윈도우에서 정상 패턴을 보입니다.
+                </div>
+            `}
         </div>
+
+        <details class="mt-3">
+            <summary class="small text-muted" style="cursor: pointer;">
+                <i class="bi bi-chevron-right"></i> 윈도우별 상세 결과 보기
+            </summary>
+            <div class="mt-2 small" style="max-height: 200px; overflow-y: auto;">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>윈도우</th>
+                            <th>상태</th>
+                            <th>버블</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${confidence.detailed_results.map(r => `
+                            <tr>
+                                <td>${r.window_size}일</td>
+                                <td>
+                                    ${r.success ?
+                                        '<span class="badge bg-success">성공</span>' :
+                                        '<span class="badge bg-danger">실패</span>'}
+                                </td>
+                                <td>
+                                    ${r.is_bubble ?
+                                        '<i class="bi bi-check-circle text-danger"></i>' :
+                                        '<i class="bi bi-x-circle text-muted"></i>'}
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </details>
     `;
 
     // Add LPPL fitted line to chart
