@@ -9,6 +9,7 @@ app_name = "accounts"
 urlpatterns = [
     path("login/", views.UserLoginView.as_view(), name="login"),
     path("logout/", views.UserLogoutView.as_view(), name="logout"),
+    path("guest/", views.guest_login, name="guest_login"),
     path("register/", views.UserRegisterView.as_view(), name="register"),
     path("watchlist/", views.WatchlistView.as_view(), name="watchlist"),
     path(

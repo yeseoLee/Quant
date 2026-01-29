@@ -70,6 +70,19 @@
                                 </li>
                             </ul>
                         </li>
+                    {% elif request.session.is_guest %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                                <i class="bi bi-person-circle"></i> 계정
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a href="{% url 'accounts:login' %}" class="dropdown-item">
+                                        <i class="bi bi-box-arrow-in-right"></i> 로그인
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
                     {% else %}
                         <li class="nav-item">
                             <a class="nav-link" href="{% url 'accounts:login' %}">

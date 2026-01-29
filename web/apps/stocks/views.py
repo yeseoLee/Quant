@@ -63,7 +63,7 @@ class StockDetailView(TemplateView):
         return context
 
 
-class ScreenerView(LoginRequiredMixin, TemplateView):
+class ScreenerView(TemplateView):
     """KOSPI200 screening view."""
 
     template_name = "stocks/screener.html"

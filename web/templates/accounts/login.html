@@ -14,10 +14,15 @@
                 <form method="post">
                     {% csrf_token %}
                     {{ form|crispy }}
-                    <div class="d-grid gap-2">
+                    <div class="d-grid gap-2 mb-2">
                         <button type="submit" class="btn btn-primary">로그인</button>
                     </div>
                 </form>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'accounts:guest_login' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-box-arrow-in-right"></i> 로그인 없이 이용하기
+                    </a>
+                </div>
             </div>
             <div class="card-footer text-center">
                 <small>계정이 없으신가요? <a href="{% url 'accounts:register' %}">회원가입</a></small>
