@@ -59,29 +59,33 @@ make install
 ## 사용된 라이브러리
 
 ### 데이터 수집
-| 라이브러리 | 용도 |
-|-----------|------|
-| [FinanceDataReader](https://github.com/FinanceData/FinanceDataReader) | 한국 주식 데이터 수집 |
-| [yfinance](https://github.com/ranaroussi/yfinance) | 글로벌 주식 데이터 수집 |
+
+| 라이브러리                                                         | 용도                    |
+| ------------------------------------------------------------------ | ----------------------- |
+| [FinanceDataReader](https://github.com/FinanceData/FinanceDataReader) | 한국 주식 데이터 수집   |
+| [yfinance](https://github.com/ranaroussi/yfinance)                    | 글로벌 주식 데이터 수집 |
 
 ### 데이터 처리
-| 라이브러리 | 용도 |
-|-----------|------|
+
+| 라이브러리                        | 용도                |
+| --------------------------------- | ------------------- |
 | [pandas](https://pandas.pydata.org/) | 데이터 처리 및 분석 |
-| [numpy](https://numpy.org/) | 수치 계산 |
+| [numpy](https://numpy.org/)          | 수치 계산           |
 
 ### 기술적 분석
-| 라이브러리 | 용도 |
-|-----------|------|
-| [ta](https://github.com/bukosabino/ta) | 기술적 분석 지표 |
+
+| 라이브러리                                       | 용도                    |
+| ------------------------------------------------ | ----------------------- |
+| [ta](https://github.com/bukosabino/ta)              | 기술적 분석 지표        |
 | [pandas-ta](https://github.com/twopirllc/pandas-ta) | pandas 기반 기술적 분석 |
 
 ### 시각화
-| 라이브러리 | 용도 |
-|-----------|------|
-| [matplotlib](https://matplotlib.org/) | 기본 차트 |
-| [seaborn](https://seaborn.pydata.org/) | 통계 시각화 |
-| [plotly](https://plotly.com/) | 인터랙티브 차트 |
+
+| 라이브러리                          | 용도            |
+| ----------------------------------- | --------------- |
+| [matplotlib](https://matplotlib.org/)  | 기본 차트       |
+| [seaborn](https://seaborn.pydata.org/) | 통계 시각화     |
+| [plotly](https://plotly.com/)          | 인터랙티브 차트 |
 
 ## 개발 명령어
 
@@ -143,11 +147,11 @@ df_stoch = stoch.calculate(df)
 
 ### 모멘텀 팩터
 
-| 지표 | 설명 | 매개변수 |
-|------|------|----------|
-| **RSI** | 상대강도지수 - 과매수/과매도 판단 | period, overbought, oversold |
-| **Bollinger Bands** | 변동성 밴드 - 가격 밴드 이탈 신호 | period, std_dev |
-| **Stochastic** | 스토캐스틱 - %K, %D 교차 신호 | k_period, d_period, smooth_k |
+| 지표                      | 설명                              | 매개변수                     |
+| ------------------------- | --------------------------------- | ---------------------------- |
+| **RSI**             | 상대강도지수 - 과매수/과매도 판단 | period, overbought, oversold |
+| **Bollinger Bands** | 변동성 밴드 - 가격 밴드 이탈 신호 | period, std_dev              |
+| **Stochastic**      | 스토캐스틱 - %K, %D 교차 신호     | k_period, d_period, smooth_k |
 
 > 📖 매매신호 로직에 대한 자세한 설명은 [TRADING_SIGNALS.md](./TRADING_SIGNALS.md)를 참조하세요.
 
@@ -174,12 +178,12 @@ ln(p(t)) = A + B(tc - t)^m + C(tc - t)^m * cos(ω * ln(tc - t) + φ)
 
 ### 버블 상태 분류
 
-| 상태 | 신뢰도 | 조건 | 의미 |
-|------|--------|------|------|
-| **CRITICAL** | ≥75% | tc가 60일 이내 | 매우 위험 - 임박한 조정 |
-| **WARNING** | ≥75% | tc가 60일 이후 | 버블 경고 - 주의 필요 |
-| **WATCH** | ≥50% | - | 버블 가능성 - 모니터링 |
-| **NORMAL** | <50% | - | 정상 범위 |
+| 상태               | 신뢰도 | 조건           | 의미                    |
+| ------------------ | ------ | -------------- | ----------------------- |
+| **CRITICAL** | ≥75%  | tc가 60일 이내 | 매우 위험 - 임박한 조정 |
+| **WARNING**  | ≥75%  | tc가 60일 이후 | 버블 경고 - 주의 필요   |
+| **WATCH**    | ≥50%  | -              | 버블 가능성 - 모니터링  |
+| **NORMAL**   | <50%   | -              | 정상 범위               |
 
 ### 사용 예시
 
@@ -210,11 +214,11 @@ fitted, forecast = lppl.forecast(prices, forecast_days=60)
 
 ## 문서
 
-| 문서 | 설명 |
-|------|------|
-| [LPPL_MODEL.md](./LPPL_MODEL.md) | LPPL 버블 진단 모델 상세 가이드 - 이론, 파라미터, 해석 방법 |
+| 문서                                    | 설명                                                          |
+| --------------------------------------- | ------------------------------------------------------------- |
+| [LPPL_MODEL.md](./LPPL_MODEL.md)           | LPPL 버블 진단 모델 상세 가이드 - 이론, 파라미터, 해석 방법   |
 | [TRADING_SIGNALS.md](./TRADING_SIGNALS.md) | 매매신호 로직 가이드 - RSI, 볼린저 밴드, 스토캐스틱 신호 설명 |
-| [CLAUDE.md](./CLAUDE.md) | Claude Code 개발 가이드 - 빌드, 테스트, 아키텍처 |
+| [CLAUDE.md](./CLAUDE.md)                   | Claude Code 개발 가이드 - 빌드, 테스트, 아키텍처              |
 
 ---
 
@@ -227,6 +231,8 @@ fitted, forecast = lppl.forecast(prices, forecast_days=60)
 - [ ] KOSPI, KOSDAQ 전체 종목 지원
 - [ ] 백테스팅 프레임워크
 - [ ] 포트폴리오 최적화
+- [ ] VIX Index Decomposition
+- [ ] Gamma Exposure Calculation
 
 ## 라이선스
 
