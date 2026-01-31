@@ -175,13 +175,26 @@ class BubbleAnalysisView(View):
     """API endpoint for LPPL bubble analysis."""
 
     def get(self, request, symbol):
-        """Analyze stock for bubble using LPPL model."""
+        """
+        Analyze stock for bubble using LPPL model.
+
+        Query parameters:
+            start: Start date (optional, default: 3 years ago)
+            end: End date (optional, default: today)
+            force: If "true", bypass cache and recompute (optional)
+        """
         start_date = request.GET.get("start")
         end_date = request.GET.get("end")
+        force_recompute = request.GET.get("force", "").lower() == "true"
 
         service = StockService()
         try:
-            result = service.analyze_bubble(symbol, start_date, end_date)
+            result = service.analyze_bubble(
+                symbol,
+                start_date,
+                end_date,
+                force_recompute=force_recompute,
+            )
             return JsonResponse(result)
         except ValueError as e:
             return JsonResponse(

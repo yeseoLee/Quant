@@ -8,6 +8,7 @@ from quant.data import DataFetcher, Kospi200
 from quant.factors import RSI, BollingerBands, Stochastic
 from quant.models import LPPL
 
+from .lppl_cache_service import LPPLCacheService
 from .models import StockCache, StockPrice
 from .sync_service import StockSyncService
 
@@ -19,6 +20,7 @@ class StockService:
         self._fetcher = DataFetcher()
         self._kospi200 = Kospi200()
         self._sync_service = StockSyncService()
+        self._lppl_cache = LPPLCacheService()
         self._factors = {
             "RSI": RSI,
             "BB": BollingerBands,
@@ -445,6 +447,7 @@ class StockService:
         symbol: str,
         start_date: str | None = None,
         end_date: str | None = None,
+        force_recompute: bool = False,
     ) -> dict:
         """
         Analyze stock for bubble using LPPL multi-window analysis.
@@ -453,10 +456,14 @@ class StockService:
         time windows (125-750 days) and calculating the proportion of fits
         that satisfy bubble conditions.
 
+        Results are cached in the database and reused when the analysis date
+        matches the latest price date. Use force_recompute=True to bypass cache.
+
         Args:
             symbol: Stock ticker symbol
             start_date: Start date (default: 3 years ago for multi-window)
             end_date: End date (default: today)
+            force_recompute: If True, bypass cache and recompute
 
         Returns:
             Dict with LPPLS confidence indicator and detailed results
@@ -476,19 +483,17 @@ class StockService:
         # Extract closing prices
         prices = df["close"]
 
-        # Run multi-window LPPL analysis
-        lppl = LPPL()
         try:
-            # Multi-window analysis with LPPLS Confidence Indicator
-            confidence_result = lppl.fit_multi_window(
-                prices,
-                min_window=125,
-                max_window=750,
-                step=25,
-                max_iter=1500,  # Reduced for speed
+            # Use cache service for multi-window analysis (step=5 for finer granularity)
+            confidence_result = self._lppl_cache.get_or_compute(
+                symbol=symbol,
+                prices_df=df,
+                step=5,  # Changed from 25 to 5 for finer granularity
+                force_recompute=force_recompute,
             )
 
             # Also fit on full data for visualization
+            lppl = LPPL()
             try:
                 lppl.fit(prices, max_iter=2000)
                 fitted, forecast = lppl.forecast(prices, forecast_days=60)
@@ -500,9 +505,9 @@ class StockService:
                 has_fit = False
 
         except ValueError as e:
-            raise ValueError(f"데이터 부족: {str(e)}")
+            raise ValueError(f"데이터 부족: {str(e)}") from e
         except Exception as e:
-            raise RuntimeError(f"분석 중 오류 발생: {str(e)}")
+            raise RuntimeError(f"분석 중 오류 발생: {str(e)}") from e
 
         # Format for JSON response
         result = {
