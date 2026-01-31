@@ -64,18 +64,9 @@ class StockDetailView(TemplateView):
 
 
 class ScreenerView(TemplateView):
-    """KOSPI200 screening view."""
+    """KOSPI200 momentum factor screening view."""
 
     template_name = "stocks/screener.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["indicators"] = [
-            {"id": "RSI", "name": "RSI", "description": "Relative Strength Index"},
-            {"id": "BB", "name": "Bollinger Bands", "description": "볼린저 밴드"},
-            {"id": "STOCH", "name": "Stochastic", "description": "스토캐스틱"},
-        ]
-        return context
 
 
 class SearchResultsView(TemplateView):

@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}KOSPI200 스크리너 - Korean Stock Quant{% endblock %}
+{% block title %}KOSPI200 모멘텀 스크리너 - Korean Stock Quant{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <h2 class="mb-4"><i class="bi bi-funnel"></i> KOSPI 200 스크리너</h2>
+    <h2 class="mb-4"><i class="bi bi-funnel"></i> KOSPI 200 모멘텀 스크리너</h2>
 
     <div class="row">
         <!-- Filter Panel -->
@@ -15,15 +15,6 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
-                        <label class="form-label">지표 선택</label>
-                        <select class="form-select" id="indicatorSelect">
-                            {% for ind in indicators %}
-                            <option value="{{ ind.id }}">{{ ind.name }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="mb-3">
                         <label class="form-label">신호 필터</label>
                         <select class="form-select" id="signalFilter">
                             <option value="">전체</option>
@@ -32,38 +23,38 @@
                         </select>
                     </div>
 
-                    <!-- RSI Parameters -->
-                    <div id="rsi-screener-params" class="indicator-params">
-                        <hr>
-                        <h6>RSI 파라미터</h6>
-                        <div class="mb-2">
-                            <label class="form-label small">Period</label>
-                            <input type="number" class="form-control form-control-sm" id="screenerRsiPeriod" value="14" min="2" max="50">
+                    <div class="mb-3">
+                        <label class="form-label">모멘텀 상태</label>
+                        <select class="form-select" id="stateFilter">
+                            <option value="">전체</option>
+                            <option value="VERY_STRONG_BULLISH">매우 강한 상승</option>
+                            <option value="BULLISH">상승</option>
+                            <option value="SLIGHTLY_BULLISH">약한 상승</option>
+                            <option value="NEUTRAL">중립</option>
+                            <option value="SLIGHTLY_BEARISH">약한 하락</option>
+                            <option value="BEARISH">하락</option>
+                            <option value="VERY_STRONG_BEARISH">매우 강한 하락</option>
+                        </select>
+                    </div>
+
+                    <hr>
+                    <h6>점수 범위 필터</h6>
+                    <div class="row mb-3">
+                        <div class="col-6">
+                            <label class="form-label small">최소 점수</label>
+                            <input type="number" class="form-control form-control-sm" id="minScore" value="" min="0" max="100" placeholder="0">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">최대 점수</label>
+                            <input type="number" class="form-control form-control-sm" id="maxScore" value="" min="0" max="100" placeholder="100">
                         </div>
                     </div>
 
-                    <!-- BB Parameters -->
-                    <div id="bb-screener-params" class="indicator-params" style="display: none;">
-                        <hr>
-                        <h6>Bollinger Bands 파라미터</h6>
-                        <div class="mb-2">
-                            <label class="form-label small">Period</label>
-                            <input type="number" class="form-control form-control-sm" id="screenerBbPeriod" value="20" min="5" max="50">
-                        </div>
-                        <div>
-                            <label class="form-label small">Std Dev</label>
-                            <input type="number" class="form-control form-control-sm" id="screenerBbStdDev" value="2" min="1" max="4" step="0.5">
-                        </div>
-                    </div>
-
-                    <!-- Stochastic Parameters -->
-                    <div id="stoch-screener-params" class="indicator-params" style="display: none;">
-                        <hr>
-                        <h6>Stochastic 파라미터</h6>
-                        <div class="mb-2">
-                            <label class="form-label small">%K Period</label>
-                            <input type="number" class="form-control form-control-sm" id="screenerStochK" value="14" min="2" max="50">
-                        </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="forceRecompute">
+                        <label class="form-check-label small" for="forceRecompute">
+                            캐시 무시하고 재계산
+                        </label>
                     </div>
 
                     <hr>
@@ -71,6 +62,35 @@
                     <button class="btn btn-primary w-100" id="runScreener">
                         <i class="bi bi-play-fill"></i> 스크리닝 실행
                     </button>
+                </div>
+            </div>
+
+            <!-- Score Legend -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> 점수 해석
+                </div>
+                <div class="card-body small">
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="badge bg-success">80-100</span>
+                        <span>매우 강한 상승</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="badge bg-success bg-opacity-75">65-80</span>
+                        <span>상승</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="badge bg-secondary">45-65</span>
+                        <span>중립</span>
+                    </div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <span class="badge bg-danger bg-opacity-75">20-45</span>
+                        <span>하락</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="badge bg-danger">0-20</span>
+                        <span>매우 강한 하락</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -82,30 +102,39 @@
                     <span><i class="bi bi-table"></i> 스크리닝 결과</span>
                     <span id="result-count" class="badge bg-secondary">0건</span>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <div id="screener-loading" class="text-center py-5" style="display: none;">
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
                         <p class="mt-2 text-muted">스크리닝 중... (KOSPI 200 전 종목 분석)</p>
+                        <p class="small text-muted">첫 실행 시 시간이 소요될 수 있습니다.</p>
                     </div>
 
                     <div id="screener-placeholder" class="text-center py-5 text-muted">
                         <i class="bi bi-funnel fs-1"></i>
                         <p class="mt-2">필터를 설정하고 "스크리닝 실행" 버튼을 클릭하세요.</p>
+                        <p class="small">11개 기술적 지표를 종합한 모멘텀 점수로 종목을 스크리닝합니다.</p>
                     </div>
 
                     <div id="screener-results" style="display: none;">
                         <div class="table-responsive">
-                            <table class="table table-hover table-striped">
-                                <thead class="table-dark">
+                            <table class="table table-hover table-sm mb-0">
+                                <thead class="table-dark sticky-top">
                                     <tr>
-                                        <th>종목코드</th>
-                                        <th>종목명</th>
-                                        <th class="text-end">현재가</th>
-                                        <th class="text-center">신호</th>
-                                        <th>신호일자</th>
-                                        <th id="indicator-value-header">지표값</th>
+                                        <th style="min-width: 70px;">종목코드</th>
+                                        <th style="min-width: 100px;">종목명</th>
+                                        <th class="text-end" style="min-width: 80px;">현재가</th>
+                                        <th class="text-center" style="min-width: 70px;">종합점수</th>
+                                        <th class="text-center" style="min-width: 60px;">신호</th>
+                                        <th class="text-center" style="min-width: 50px;">추세</th>
+                                        <th class="text-center" style="min-width: 50px;">오실</th>
+                                        <th class="text-center" style="min-width: 50px;">거래량</th>
+                                        <th class="text-center" style="min-width: 40px;">RSI</th>
+                                        <th class="text-center" style="min-width: 40px;">MACD</th>
+                                        <th class="text-center" style="min-width: 40px;">ADX</th>
+                                        <th class="text-center" style="min-width: 40px;">STOCH</th>
+                                        <th class="text-center" style="min-width: 40px;">MFI</th>
                                     </tr>
                                 </thead>
                                 <tbody id="results-body">
@@ -123,44 +152,29 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    const indicatorSelect = document.getElementById('indicatorSelect');
     const signalFilter = document.getElementById('signalFilter');
+    const stateFilter = document.getElementById('stateFilter');
+    const minScore = document.getElementById('minScore');
+    const maxScore = document.getElementById('maxScore');
+    const forceRecompute = document.getElementById('forceRecompute');
     const runButton = document.getElementById('runScreener');
-
-    // Show/hide indicator params based on selection
-    indicatorSelect.addEventListener('change', function() {
-        document.querySelectorAll('.indicator-params').forEach(el => el.style.display = 'none');
-        const paramDiv = document.getElementById(this.value.toLowerCase() + '-screener-params');
-        if (paramDiv) {
-            paramDiv.style.display = 'block';
-        }
-    });
 
     // Run screener
     runButton.addEventListener('click', async function() {
-        const indicator = indicatorSelect.value;
-        const signal = signalFilter.value;
-
         // Build query params
         let params = new URLSearchParams();
-        params.append('indicator', indicator);
-        if (signal) {
-            params.append('signal', signal);
-        }
 
-        // Add indicator-specific params
-        if (indicator === 'RSI') {
-            const period = document.getElementById('screenerRsiPeriod').value;
-            if (period) params.append('period', period);
-        } else if (indicator === 'BB') {
-            const period = document.getElementById('screenerBbPeriod').value;
-            const stdDev = document.getElementById('screenerBbStdDev').value;
-            if (period) params.append('period', period);
-            if (stdDev) params.append('std_dev', stdDev);
-        } else if (indicator === 'STOCH') {
-            const kPeriod = document.getElementById('screenerStochK').value;
-            if (kPeriod) params.append('k_period', kPeriod);
-        }
+        const signal = signalFilter.value;
+        const state = stateFilter.value;
+        const minVal = minScore.value;
+        const maxVal = maxScore.value;
+        const force = forceRecompute.checked;
+
+        if (signal) params.append('signal', signal);
+        if (state) params.append('state', state);
+        if (minVal) params.append('min_score', minVal);
+        if (maxVal) params.append('max_score', maxVal);
+        if (force) params.append('force', 'true');
 
         // Show loading
         document.getElementById('screener-placeholder').style.display = 'none';
@@ -168,14 +182,14 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('screener-loading').style.display = 'block';
 
         try {
-            const response = await fetch(`/api/screener/run/?${params.toString()}`);
+            const response = await fetch(`/api/screener/momentum/?${params.toString()}`);
             const data = await response.json();
 
             if (data.error) {
                 throw new Error(data.error);
             }
 
-            displayResults(data.results, indicator);
+            displayResults(data.results);
         } catch (error) {
             alert('스크리닝 중 오류가 발생했습니다: ' + error.message);
             document.getElementById('screener-loading').style.display = 'none';
@@ -183,23 +197,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    function displayResults(results, indicator) {
+    function getScoreClass(score) {
+        if (score === null || score === undefined) return 'text-muted';
+        if (score >= 80) return 'text-success fw-bold';
+        if (score >= 65) return 'text-success';
+        if (score >= 55) return 'text-success-subtle';
+        if (score >= 45) return 'text-secondary';
+        if (score >= 35) return 'text-danger-subtle';
+        if (score >= 20) return 'text-danger';
+        return 'text-danger fw-bold';
+    }
+
+    function getScoreBadgeClass(score) {
+        if (score === null || score === undefined) return 'bg-secondary';
+        if (score >= 80) return 'bg-success';
+        if (score >= 65) return 'bg-success bg-opacity-75';
+        if (score >= 55) return 'bg-info bg-opacity-75';
+        if (score >= 45) return 'bg-secondary';
+        if (score >= 35) return 'bg-warning bg-opacity-75';
+        if (score >= 20) return 'bg-danger bg-opacity-75';
+        return 'bg-danger';
+    }
+
+    function formatScore(score) {
+        if (score === null || score === undefined) return '-';
+        return score.toFixed(0);
+    }
+
+    function displayResults(results) {
         document.getElementById('screener-loading').style.display = 'none';
         document.getElementById('screener-results').style.display = 'block';
         document.getElementById('result-count').textContent = results.length + '건';
-
-        // Update indicator value header
-        let headerText = '지표값';
-        if (indicator === 'RSI') headerText = 'RSI';
-        else if (indicator === 'BB') headerText = 'BB %B';
-        else if (indicator === 'STOCH') headerText = '%K / %D';
-        document.getElementById('indicator-value-header').textContent = headerText;
 
         const tbody = document.getElementById('results-body');
         tbody.innerHTML = '';
 
         if (results.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">조건에 맞는 종목이 없습니다.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="13" class="text-center text-muted py-4">조건에 맞는 종목이 없습니다.</td></tr>';
             return;
         }
 
@@ -216,23 +250,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 signalBadge = '<span class="badge bg-secondary">-</span>';
             }
 
-            // Indicator value
-            let indicatorValue = '-';
-            if (indicator === 'RSI' && stock.rsi !== undefined) {
-                indicatorValue = stock.rsi.toFixed(2);
-            } else if (indicator === 'BB' && stock.bb_percent !== undefined) {
-                indicatorValue = stock.bb_percent.toFixed(2);
-            } else if (indicator === 'STOCH' && stock.stoch_k !== undefined) {
-                indicatorValue = stock.stoch_k.toFixed(2) + ' / ' + stock.stoch_d.toFixed(2);
-            }
+            // Get indicator scores
+            const scores = stock.indicator_scores || {};
 
             row.innerHTML = `
                 <td><a href="/stock/${stock.symbol}/">${stock.symbol}</a></td>
-                <td>${stock.name}</td>
-                <td class="text-end">${stock.price.toLocaleString()}</td>
+                <td class="text-truncate" style="max-width: 100px;" title="${stock.name}">${stock.name}</td>
+                <td class="text-end">${stock.price ? stock.price.toLocaleString() : '-'}</td>
+                <td class="text-center">
+                    <span class="badge ${getScoreBadgeClass(stock.total_score)}">${formatScore(stock.total_score)}</span>
+                </td>
                 <td class="text-center">${signalBadge}</td>
-                <td>${stock.signal_date || '-'}</td>
-                <td>${indicatorValue}</td>
+                <td class="text-center ${getScoreClass(stock.trend_score)}">${formatScore(stock.trend_score)}</td>
+                <td class="text-center ${getScoreClass(stock.oscillator_score)}">${formatScore(stock.oscillator_score)}</td>
+                <td class="text-center ${getScoreClass(stock.volume_score)}">${formatScore(stock.volume_score)}</td>
+                <td class="text-center ${getScoreClass(scores.RSI)}">${formatScore(scores.RSI)}</td>
+                <td class="text-center ${getScoreClass(scores.MACD)}">${formatScore(scores.MACD)}</td>
+                <td class="text-center ${getScoreClass(scores.ADX)}">${formatScore(scores.ADX)}</td>
+                <td class="text-center ${getScoreClass(scores.Stochastic)}">${formatScore(scores.Stochastic)}</td>
+                <td class="text-center ${getScoreClass(scores.MFI)}">${formatScore(scores.MFI)}</td>
             `;
 
             tbody.appendChild(row);
