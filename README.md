@@ -147,11 +147,36 @@ df_stoch = stoch.calculate(df)
 
 ### 모멘텀 팩터
 
-| 지표                      | 설명                              | 매개변수                     |
-| ------------------------- | --------------------------------- | ---------------------------- |
-| **RSI**             | 상대강도지수 - 과매수/과매도 판단 | period, overbought, oversold |
-| **Bollinger Bands** | 변동성 밴드 - 가격 밴드 이탈 신호 | period, std_dev              |
-| **Stochastic**      | 스토캐스틱 - %K, %D 교차 신호     | k_period, d_period, smooth_k |
+| 지표                  | 설명                              | 매개변수                     |
+| --------------------- | --------------------------------- | ---------------------------- |
+| **RSI**               | 상대강도지수 - 과매수/과매도 판단 | period, overbought, oversold |
+| **Bollinger Bands**   | 변동성 밴드 - 가격 밴드 이탈 신호 | period, std_dev              |
+| **Stochastic**        | 스토캐스틱 - %K, %D 교차 신호     | k_period, d_period, smooth_k |
+| **MACD**              | 이동평균 수렴확산 - 추세 추종     | fast, slow, signal           |
+| **ADX**               | 평균 방향성 지수 - 추세 강도      | period, trend_threshold      |
+| **CCI**               | 상품 채널 지수 - 가격 편차        | period, overbought, oversold |
+| **Williams %R**       | 윌리엄스 %R - 과매수/과매도       | period, overbought, oversold |
+| **ROC**               | 변화율 - 모멘텀 측정              | period, signal_period        |
+| **MFI**               | 자금 흐름 지수 - 볼륨 가중 RSI    | period, overbought, oversold |
+| **VolumeMA**          | 거래량 이동평균 - 거래량 분석     | period, threshold            |
+| **OBV**               | 누적 거래량 - 거래량 추세         | signal_period                |
+
+### 모멘텀 팩터 종합 점수 (MomentumFactor)
+
+11개 기술적 지표를 가중 평균하여 **0-100 점수**로 종합합니다:
+
+| 카테고리      | 비중  | 포함 지표                        |
+| ------------- | ----- | -------------------------------- |
+| **Trend**     | 40%   | RSI, MACD, ADX, ROC              |
+| **Oscillator**| 35%   | Stochastic, CCI, Williams %R, BB |
+| **Volume**    | 25%   | MFI, OBV, VolumeMA               |
+
+**점수 해석**:
+- 80-100: 매우 강한 상승 모멘텀 (매수 신호)
+- 65-80: 상승 모멘텀 (매수 신호)
+- 45-65: 중립
+- 20-45: 하락 모멘텀 (매도 신호)
+- 0-20: 매우 강한 하락 모멘텀 (매도 신호)
 
 > 📖 매매신호 로직에 대한 자세한 설명은 [TRADING_SIGNALS.md](./TRADING_SIGNALS.md)를 참조하세요.
 
@@ -169,6 +194,8 @@ LPPL(Log-Periodic Power Law) 모델은 디디에 소르네트(Didier Sornette) �
 - **버블 패턴 탐지**: 로그-주기적 진동(log-periodic oscillations) 패턴 분석
 - **임계점 예측**: 버블이 최고조에 달하는 시점(tc) 추정
 - **신뢰도 계산**: 파라미터 검증을 통한 버블 신뢰도 산출
+- **LPPLS Confidence Indicator**: 다중 윈도우 분석을 통한 신뢰도 지표 (126개 윈도우)
+- **결과 캐싱**: DB에 분석 결과 저장, 증분 업데이트 지원
 
 ### LPPL 수식
 
@@ -224,9 +251,14 @@ fitted, forecast = lppl.forecast(prices, forecast_days=60)
 
 ## 향후 계획
 
-- [ ] CCI
-- [ ] Williams
-- [ ] MACD 지표 추가
+- [x] CCI (Commodity Channel Index)
+- [x] Williams %R
+- [x] MACD 지표 추가
+- [x] MFI (Money Flow Index)
+- [x] ADX (Average Directional Index)
+- [x] ROC (Rate of Change)
+- [x] 모멘텀 팩터 종합 점수 시스템
+- [x] LPPL 분석 결과 캐싱
 - [ ] 이동평균 크로스오버 전략
 - [ ] 가치 팩터 (PER, PBR, ROE)
 - [ ] 품질 팩터 (수익성, 안정성)

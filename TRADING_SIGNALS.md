@@ -155,6 +155,264 @@ Stochastic은 **교차(crossover)** 전략을 사용하므로:
 
 ---
 
+## 4. MACD (Moving Average Convergence Divergence)
+
+### 지표 설명
+MACD는 두 이동평균선의 차이와 그 신호선을 이용한 추세 추종 지표입니다.
+
+**구성 요소**:
+- **MACD Line**: 빠른 EMA - 느린 EMA
+- **Signal Line**: MACD의 EMA
+- **Histogram**: MACD - Signal
+
+### 매개변수
+```python
+fast_period: int = 12    # 빠른 EMA 기간
+slow_period: int = 26    # 느린 EMA 기간
+signal_period: int = 9   # 신호선 기간
+```
+
+### 매매신호 로직
+
+#### 매수 신호 (1)
+```
+조건: MACD가 Signal Line을 상향 돌파
+- 현재 MACD > Signal
+- 이전 MACD <= Signal
+```
+
+#### 매도 신호 (-1)
+```
+조건: MACD가 Signal Line을 하향 돌파
+- 현재 MACD < Signal
+- 이전 MACD >= Signal
+```
+
+### 코드 위치
+`src/quant/factors/momentum/macd.py`
+
+---
+
+## 5. ADX (Average Directional Index)
+
+### 지표 설명
+ADX는 추세의 강도를 측정합니다. 방향과 관계없이 추세의 세기만 판단합니다.
+- **ADX > 25**: 강한 추세
+- **ADX < 20**: 약한 추세 또는 횡보
+
+### 매개변수
+```python
+period: int = 14              # ADX 계산 기간
+trend_threshold: float = 25.0 # 강한 추세 기준
+```
+
+### 매매신호 로직
+
+#### 매수 신호 (1)
+```
+조건: +DI가 -DI를 상향 돌파하고 ADX가 강한 추세
+- +DI > -DI
+- 이전 +DI <= -DI
+- ADX > trend_threshold (25)
+```
+
+#### 매도 신호 (-1)
+```
+조건: -DI가 +DI를 상향 돌파하고 ADX가 강한 추세
+- -DI > +DI
+- 이전 -DI <= +DI
+- ADX > trend_threshold (25)
+```
+
+### 코드 위치
+`src/quant/factors/momentum/adx.py`
+
+---
+
+## 6. CCI (Commodity Channel Index)
+
+### 지표 설명
+CCI는 가격이 통계적 평균에서 얼마나 벗어났는지 측정합니다.
+- **CCI > 100**: 과매수 (강한 상승 추세)
+- **CCI < -100**: 과매도 (강한 하락 추세)
+
+### 매개변수
+```python
+period: int = 20              # CCI 계산 기간
+overbought: float = 100.0     # 과매수 기준
+oversold: float = -100.0      # 과매도 기준
+```
+
+### 매매신호 로직
+
+#### 매수 신호 (1)
+```
+조건: CCI가 과매도 수준을 상향 돌파
+- 현재 CCI > oversold (-100)
+- 이전 CCI <= oversold (-100)
+```
+
+#### 매도 신호 (-1)
+```
+조건: CCI가 과매수 수준을 하향 돌파
+- 현재 CCI < overbought (100)
+- 이전 CCI >= overbought (100)
+```
+
+### 코드 위치
+`src/quant/factors/momentum/cci.py`
+
+---
+
+## 7. Williams %R
+
+### 지표 설명
+Williams %R은 스토캐스틱과 유사하나 역전된 스케일(-100 ~ 0)을 사용합니다.
+- **%R > -20**: 과매수
+- **%R < -80**: 과매도
+
+### 매개변수
+```python
+period: int = 14              # 계산 기간
+overbought: float = -20.0     # 과매수 기준
+oversold: float = -80.0       # 과매도 기준
+```
+
+### 매매신호 로직
+
+#### 매수 신호 (1)
+```
+조건: %R이 과매도 수준을 상향 돌파
+- 현재 %R > oversold (-80)
+- 이전 %R <= oversold (-80)
+```
+
+#### 매도 신호 (-1)
+```
+조건: %R이 과매수 수준을 하향 돌파
+- 현재 %R < overbought (-20)
+- 이전 %R >= overbought (-20)
+```
+
+### 코드 위치
+`src/quant/factors/momentum/williams_r.py`
+
+---
+
+## 8. ROC (Rate of Change)
+
+### 지표 설명
+ROC는 현재 가격과 n일 전 가격의 백분율 변화를 측정합니다.
+- **ROC > 0**: 상승 추세
+- **ROC < 0**: 하락 추세
+
+### 매개변수
+```python
+period: int = 12          # 계산 기간
+signal_period: int = 9    # 신호선 기간
+```
+
+### 매매신호 로직
+
+#### 매수 신호 (1)
+```
+조건: ROC가 0을 상향 돌파
+- 현재 ROC > 0
+- 이전 ROC <= 0
+```
+
+#### 매도 신호 (-1)
+```
+조건: ROC가 0을 하향 돌파
+- 현재 ROC < 0
+- 이전 ROC >= 0
+```
+
+### 코드 위치
+`src/quant/factors/momentum/roc.py`
+
+---
+
+## 9. MFI (Money Flow Index)
+
+### 지표 설명
+MFI는 거래량을 가중한 RSI입니다. 가격과 거래량을 함께 분석합니다.
+- **MFI > 80**: 과매수
+- **MFI < 20**: 과매도
+
+### 매개변수
+```python
+period: int = 14              # 계산 기간
+overbought: float = 80.0      # 과매수 기준
+oversold: float = 20.0        # 과매도 기준
+```
+
+### 매매신호 로직
+
+#### 매수 신호 (1)
+```
+조건: MFI가 과매도 수준을 상향 돌파
+- 현재 MFI > oversold (20)
+- 이전 MFI <= oversold (20)
+```
+
+#### 매도 신호 (-1)
+```
+조건: MFI가 과매수 수준을 하향 돌파
+- 현재 MFI < overbought (80)
+- 이전 MFI >= overbought (80)
+```
+
+### 코드 위치
+`src/quant/factors/momentum/mfi.py`
+
+---
+
+## 10. 모멘텀 팩터 종합 점수 (MomentumFactor)
+
+### 개요
+MomentumFactor는 11개 기술적 지표를 가중 평균하여 0-100 점수로 종합합니다.
+
+### 카테고리별 가중치
+
+| 카테고리 | 비중 | 포함 지표 |
+|---------|------|----------|
+| **Trend** | 40% | RSI(12%), MACD(10%), ADX(10%), ROC(8%) |
+| **Oscillator** | 35% | Stochastic(10%), CCI(8%), Williams %R(8%), BB(9%) |
+| **Volume** | 25% | MFI(10%), OBV(8%), VolumeMA(7%) |
+
+### 점수 해석
+
+| 점수 범위 | 상태 | 신호 | 의미 |
+|----------|------|------|------|
+| 80-100 | VERY_STRONG_BULLISH | 매수 | 매우 강한 상승 모멘텀 |
+| 65-80 | BULLISH | 매수 | 상승 모멘텀 |
+| 55-65 | SLIGHTLY_BULLISH | 관망 | 약한 상승 모멘텀 |
+| 45-55 | NEUTRAL | 관망 | 중립 |
+| 35-45 | SLIGHTLY_BEARISH | 관망 | 약한 하락 모멘텀 |
+| 20-35 | BEARISH | 매도 | 하락 모멘텀 |
+| 0-20 | VERY_STRONG_BEARISH | 매도 | 매우 강한 하락 모멘텀 |
+
+### 사용 예시
+```python
+from quant.factors import MomentumFactor
+
+momentum = MomentumFactor()
+result = momentum.calculate(df)
+
+print(f"종합 점수: {result['total_score']}")
+print(f"상태: {result['state']}")
+print(f"신호: {result['signal']}")
+print(f"추세 점수: {result['category_scores']['trend']}")
+print(f"오실레이터 점수: {result['category_scores']['oscillator']}")
+print(f"거래량 점수: {result['category_scores']['volume']}")
+```
+
+### 코드 위치
+`src/quant/factors/momentum_factor.py`
+
+---
+
 ## 신호 해석 가이드
 
 ### 1. 신호 강도
@@ -165,6 +423,13 @@ Stochastic은 **교차(crossover)** 전략을 사용하므로:
 | RSI | 반전 신호 | 명확한 임계값, 구현 간단 | 횡보장에서 거짓 신호 |
 | Bollinger Bands | 평균 회귀 | 변동성 적응적 | 추세장에서 지속적 신호 |
 | Stochastic | 교차 신호 | 과매수/과매도 구간 필터링 | 지연 발생 가능 |
+| MACD | 추세 추종 | 추세 방향 명확 | 횡보장에서 비효율적 |
+| ADX | 추세 강도 | 추세 여부 판단 | 방향 제시 없음 |
+| CCI | 평균 편차 | 변동성 감지 | 극단값 발생 가능 |
+| Williams %R | 반전 신호 | 빠른 반응 | 잦은 신호 발생 |
+| ROC | 모멘텀 | 추세 전환 감지 | 노이즈에 민감 |
+| MFI | 볼륨 가중 | 거래량 반영 | 복잡한 해석 |
+| MomentumFactor | 종합 점수 | 다중 지표 통합 | 계산 비용 높음 |
 
 ### 2. 복합 전략
 더 신뢰성 있는 매매 결정을 위해 여러 지표를 조합할 수 있습니다:
@@ -204,6 +469,14 @@ RSI가 과매도 구간(< 30)일 때만 Bollinger Bands 하단 돌파 신호를 
 - `ta.rsi()`: RSI 계산
 - `ta.bbands()`: Bollinger Bands 계산
 - `ta.stoch()`: Stochastic Oscillator 계산
+- `ta.macd()`: MACD 계산
+- `ta.adx()`: ADX 계산
+- `ta.cci()`: CCI 계산
+- `ta.willr()`: Williams %R 계산
+- `ta.roc()`: ROC 계산
+- `ta.mfi()`: MFI 계산
+- `ta.obv()`: OBV 계산
+- `ta.sma()`: 이동평균 계산
 
 ### 신호 생성 흐름
 ```python
@@ -292,5 +565,5 @@ class MyIndicator(BaseFactor):
 
 ---
 
-**마지막 업데이트**: 2026-01-29
-**버전**: 1.0.0
+**마지막 업데이트**: 2026-01-31
+**버전**: 2.0.0

@@ -44,6 +44,17 @@ Input DataFrames must have lowercase OHLCV columns: `open`, `high`, `low`, `clos
 - `RSI`: Relative Strength Index with overbought/oversold thresholds
 - `BollingerBands`: Volatility bands with configurable standard deviation
 - `Stochastic`: %K/%D crossover signals
+- `MACD`: Moving Average Convergence Divergence
+- `ADX`: Average Directional Index for trend strength
+- `CCI`: Commodity Channel Index
+- `WilliamsR`: Williams %R oscillator
+- `ROC`: Rate of Change momentum
+- `MFI`: Money Flow Index (volume-weighted RSI)
+- `VolumeMA`: Volume Moving Average analysis
+- `OBV`: On-Balance Volume
+
+**Composite Factor** (`factors/momentum_factor.py`):
+- `MomentumFactor`: Weighted composite score (0-100) combining all 11 indicators
 
 ### Adding New Factors
 

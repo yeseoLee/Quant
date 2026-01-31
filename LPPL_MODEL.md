@@ -130,6 +130,33 @@ ln(p(t)) = A + B(tc - t)^m + C(tc - t)^m * cos(ω * ln(tc - t) + φ)
 
 ---
 
+## LPPLS Confidence Indicator
+
+### 다중 윈도우 분석
+
+단일 윈도우 대신 **126개 윈도우**(125일~750일, step=5)에서 LPPL을 피팅하여 신뢰도를 계산합니다.
+
+```
+LPPLS Confidence = (버블 조건 충족 윈도우 수 / 성공한 피팅 수) × 100
+```
+
+### 분석 결과 캐싱
+
+분석 결과는 DB에 저장되어 재사용됩니다:
+
+```
+캐시 동작:
+- analysis_date == 최신 가격일 → 캐시 반환 (빠름)
+- analysis_date < 최신 가격일 → 재계산 + 저장
+- force=true 파라미터 → 강제 재계산
+```
+
+**저장 데이터**:
+- `LPPLAnalysisResult`: 분석 마스터 (신뢰도, 상태, 통계)
+- `LPPLWindowResult`: 개별 윈도우 결과 (126개 윈도우의 파라미터)
+
+---
+
 ## 사용 방법
 
 ### Python API
@@ -374,6 +401,8 @@ LPPL NORMAL + 기술적 지표 정상
 ## 코드 위치
 
 - **모델 구현**: `src/quant/models/lppl.py`
+- **캐시 서비스**: `web/apps/stocks/lppl_cache_service.py` - `LPPLCacheService`
+- **DB 모델**: `web/apps/stocks/models.py` - `LPPLAnalysisResult`, `LPPLWindowResult`
 - **서비스 레이어**: `web/apps/stocks/services.py` - `analyze_bubble()` 메서드
 - **API 엔드포인트**: `web/apps/api/views.py` - `BubbleAnalysisView`
 - **프론트엔드**: `web/static/js/chart.js` - `analyzeBubble()` 함수
@@ -399,6 +428,6 @@ A: B < 0은 버블의 수학적 특성입니다. 양수일 경우 정상적인 �
 
 ---
 
-**마지막 업데이트**: 2026-01-29
-**버전**: 1.0.0
+**마지막 업데이트**: 2026-01-31
+**버전**: 1.1.0
 **구현 기반**: Sornette et al. (2001, 2003, 2009, 2013)

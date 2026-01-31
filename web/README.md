@@ -4,9 +4,10 @@ Django-based web GUI for the Korean Stock Quant library.
 
 ## Features
 
-- **Stock Analysis**: View candlestick charts with technical indicators (RSI, Bollinger Bands, Stochastic)
+- **Stock Analysis**: View candlestick charts with technical indicators (RSI, Bollinger Bands, Stochastic, MACD, ADX, etc.)
 - **Trading Signals**: Automatic buy/sell signal generation based on technical indicators
-- **KOSPI 200 Screener**: Screen stocks based on indicator conditions
+- **Momentum Screener**: Screen KOSPI 200 stocks by composite momentum score (11 indicators)
+- **LPPL Bubble Analysis**: Bubble detection with cached results and LPPLS Confidence Indicator
 - **User Accounts**: Login, registration, watchlist management, analysis history
 
 ## Requirements
@@ -89,9 +90,26 @@ web/
 | `/api/stock/<symbol>/ohlcv/` | GET | OHLCV candlestick data |
 | `/api/stock/<symbol>/indicator/<indicator>/` | GET | Indicator data (RSI, BB, STOCH) |
 | `/api/stock/<symbol>/signals/<indicator>/` | GET | Trading signals |
+| `/api/stock/<symbol>/bubble/` | GET | LPPL bubble analysis (cached) |
+| `/api/stock/<symbol>/momentum/` | GET | Momentum factor score |
 | `/api/kospi200/` | GET | KOSPI 200 stock list |
-| `/api/screener/run/` | GET | Run screener |
+| `/api/screener/run/` | GET | Run indicator screener |
+| `/api/screener/momentum/` | GET | Run momentum factor screener |
 | `/api/search/` | GET | Search stocks |
+
+### Query Parameters
+
+**Momentum Screener** (`/api/screener/momentum/`):
+- `signal`: Filter by signal (1=buy, -1=sell)
+- `min_score`: Minimum momentum score (0-100)
+- `max_score`: Maximum momentum score (0-100)
+- `state`: Filter by momentum state (BULLISH, BEARISH, etc.)
+- `force`: Bypass cache and recompute (true/false)
+
+**Bubble Analysis** (`/api/stock/<symbol>/bubble/`):
+- `start`: Start date (YYYY-MM-DD)
+- `end`: End date (YYYY-MM-DD)
+- `force`: Bypass cache and recompute (true/false)
 
 ## Technologies
 
