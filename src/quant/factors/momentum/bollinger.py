@@ -66,3 +66,28 @@ class BollingerBands(BaseFactor):
         signals[df["close"] >= df["bb_upper"]] = -1
 
         return signals
+
+    def get_momentum_score(self, df: pd.DataFrame) -> float:
+        """
+        Calculate momentum score from Bollinger Bands (0-100).
+
+        Score is based on BB%B (percent B):
+        - %B = (Price - Lower) / (Upper - Lower)
+        - %B > 1: Price above upper band (overbought but strong momentum)
+        - %B < 0: Price below lower band (oversold)
+        - %B = 0.5: Price at middle band
+        """
+        if "bb_percent" not in df.columns:
+            df = self.calculate(df)
+
+        latest = df.iloc[-1]
+        if pd.isna(latest.get("bb_percent")):
+            return 50.0  # Neutral
+
+        bb_percent = latest["bb_percent"]
+
+        # bb_percent is typically in range -0.5 to 1.5
+        # Normalize to 0-100
+        # 0 -> 25, 0.5 -> 50, 1 -> 75
+        normalized = bb_percent * 50 + 25
+        return max(0, min(100, normalized))

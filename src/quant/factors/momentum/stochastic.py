@@ -97,3 +97,19 @@ class Stochastic(BaseFactor):
         signals[sell_condition] = -1
 
         return signals
+
+    def get_momentum_score(self, df: pd.DataFrame) -> float:
+        """
+        Calculate momentum score from Stochastic (0-100).
+
+        Score is based on %K value (already in 0-100 range).
+        Higher %K = stronger upward momentum.
+        """
+        if "stoch_k" not in df.columns:
+            df = self.calculate(df)
+
+        latest = df.iloc[-1]
+        if pd.isna(latest.get("stoch_k")):
+            return 50.0  # Neutral
+
+        return max(0, min(100, latest["stoch_k"]))

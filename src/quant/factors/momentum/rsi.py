@@ -65,3 +65,19 @@ class RSI(BaseFactor):
         signals[(df["rsi"] < self.overbought) & (df["rsi"].shift(1) >= self.overbought)] = -1
 
         return signals
+
+    def get_momentum_score(self, df: pd.DataFrame) -> float:
+        """
+        Calculate momentum score from RSI (0-100).
+
+        RSI is already in range 0-100, so we use it directly.
+        Higher RSI = stronger upward momentum.
+        """
+        if "rsi" not in df.columns:
+            df = self.calculate(df)
+
+        latest = df.iloc[-1]
+        if pd.isna(latest.get("rsi")):
+            return 50.0  # Neutral
+
+        return max(0, min(100, latest["rsi"]))

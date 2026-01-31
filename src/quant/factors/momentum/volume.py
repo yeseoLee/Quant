@@ -74,6 +74,44 @@ class VolumeMA(BaseFactor):
 
         return signals
 
+    def get_momentum_score(self, df: pd.DataFrame) -> float:
+        """
+        Calculate momentum score from Volume MA (0-100).
+
+        Score is based on volume ratio relative to threshold.
+        Higher volume with price increase = higher score.
+        """
+        if "volume_ratio" not in df.columns:
+            df = self.calculate(df)
+
+        latest = df.iloc[-1]
+        if pd.isna(latest.get("volume_ratio")):
+            return 50.0  # Neutral
+
+        volume_ratio = latest["volume_ratio"]
+
+        # Check price direction
+        if len(df) > 1:
+            price_change = (df["close"].iloc[-1] - df["close"].iloc[-2]) / df["close"].iloc[-2]
+        else:
+            price_change = 0
+
+        # Base score from volume ratio
+        # ratio 1.0 = 50, ratio 2.0 = 75, ratio 0.5 = 25
+        base_score = 50 + (volume_ratio - 1.0) * 25
+
+        # Adjust based on price direction
+        if price_change > 0 and volume_ratio > 1.0:
+            # High volume with price increase - more bullish
+            adjustment = min(20, volume_ratio * 10)
+            base_score += adjustment
+        elif price_change < 0 and volume_ratio > 1.0:
+            # High volume with price decrease - more bearish
+            adjustment = min(20, volume_ratio * 10)
+            base_score -= adjustment
+
+        return max(0, min(100, base_score))
+
 
 class OBV(BaseFactor):
     """
@@ -137,3 +175,42 @@ class OBV(BaseFactor):
         ] = -1
 
         return signals
+
+    def get_momentum_score(self, df: pd.DataFrame) -> float:
+        """
+        Calculate momentum score from OBV (0-100).
+
+        Score is based on OBV trend direction and strength.
+        """
+        if "obv" not in df.columns or "obv_signal" not in df.columns:
+            df = self.calculate(df)
+
+        latest = df.iloc[-1]
+        if pd.isna(latest.get("obv")) or pd.isna(latest.get("obv_signal")):
+            return 50.0  # Neutral
+
+        obv = latest["obv"]
+        obv_signal = latest["obv_signal"]
+
+        # Base score from OBV vs Signal position
+        if obv > obv_signal:
+            base_score = 60
+        elif obv < obv_signal:
+            base_score = 40
+        else:
+            base_score = 50
+
+        # Adjust based on OBV trend (compare recent values)
+        obv_series = df["obv"].dropna().tail(20)
+        if len(obv_series) >= 5:
+            obv_recent = obv_series.tail(5).mean()
+            obv_earlier = obv_series.head(5).mean()
+
+            if obv_earlier != 0:
+                obv_change = (obv_recent - obv_earlier) / abs(obv_earlier)
+                # Adjust score by up to 30 points
+                adjustment = obv_change * 100  # Scale change
+                adjustment = max(-30, min(30, adjustment))
+                base_score += adjustment
+
+        return max(0, min(100, base_score))
