@@ -194,3 +194,76 @@ class LPPLWindowResult(models.Model):
     def __str__(self):
         status = "버블" if self.is_bubble else ("성공" if self.success else "실패")
         return f"윈도우 {self.window_size}일 - {status}"
+
+
+class MomentumFactorScore(models.Model):
+    """모멘텀 팩터 점수 저장."""
+
+    STATE_CHOICES = [
+        ("VERY_STRONG_BULLISH", "매우 강한 상승"),
+        ("BULLISH", "상승"),
+        ("SLIGHTLY_BULLISH", "약한 상승"),
+        ("NEUTRAL", "중립"),
+        ("SLIGHTLY_BEARISH", "약한 하락"),
+        ("BEARISH", "하락"),
+        ("VERY_STRONG_BEARISH", "매우 강한 하락"),
+        ("INSUFFICIENT_DATA", "데이터 부족"),
+    ]
+
+    stock = models.ForeignKey(
+        StockCache,
+        on_delete=models.CASCADE,
+        related_name="momentum_scores",
+        verbose_name="종목",
+    )
+    analysis_date = models.DateField(verbose_name="분석 기준일")
+
+    # 종합 점수
+    total_score = models.FloatField(null=True, blank=True, verbose_name="종합 점수")
+    signal = models.IntegerField(default=0, verbose_name="매매 신호")  # 1=buy, -1=sell, 0=hold
+    state = models.CharField(
+        max_length=30,
+        choices=STATE_CHOICES,
+        default="NEUTRAL",
+        verbose_name="모멘텀 상태",
+    )
+
+    # 카테고리별 점수
+    trend_score = models.FloatField(null=True, blank=True, verbose_name="추세 점수")
+    oscillator_score = models.FloatField(null=True, blank=True, verbose_name="오실레이터 점수")
+    volume_score = models.FloatField(null=True, blank=True, verbose_name="거래량 점수")
+
+    # 개별 지표 점수 (JSON으로 저장)
+    rsi_score = models.FloatField(null=True, blank=True, verbose_name="RSI 점수")
+    macd_score = models.FloatField(null=True, blank=True, verbose_name="MACD 점수")
+    adx_score = models.FloatField(null=True, blank=True, verbose_name="ADX 점수")
+    roc_score = models.FloatField(null=True, blank=True, verbose_name="ROC 점수")
+    stochastic_score = models.FloatField(null=True, blank=True, verbose_name="Stochastic 점수")
+    cci_score = models.FloatField(null=True, blank=True, verbose_name="CCI 점수")
+    williams_r_score = models.FloatField(null=True, blank=True, verbose_name="Williams %R 점수")
+    bb_score = models.FloatField(null=True, blank=True, verbose_name="BB 점수")
+    mfi_score = models.FloatField(null=True, blank=True, verbose_name="MFI 점수")
+    obv_score = models.FloatField(null=True, blank=True, verbose_name="OBV 점수")
+    volume_ma_score = models.FloatField(null=True, blank=True, verbose_name="VolumeMA 점수")
+
+    # 메타데이터
+    latest_price = models.DecimalField(
+        max_digits=12, decimal_places=2, null=True, blank=True, verbose_name="최신 종가"
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="생성일시")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="수정일시")
+
+    class Meta:
+        verbose_name = "모멘텀 팩터 점수"
+        verbose_name_plural = "모멘텀 팩터 점수"
+        unique_together = ["stock", "analysis_date"]
+        indexes = [
+            models.Index(fields=["stock", "-analysis_date"]),
+            models.Index(fields=["-total_score"]),
+            models.Index(fields=["state"]),
+        ]
+        ordering = ["-total_score"]
+
+    def __str__(self):
+        score_str = f"{self.total_score:.1f}" if self.total_score else "N/A"
+        return f"{self.stock.symbol} - {self.analysis_date} (점수: {score_str})"

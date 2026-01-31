@@ -27,6 +27,13 @@ urlpatterns = [
     # KOSPI200 endpoints
     path("kospi200/", views.Kospi200ListView.as_view(), name="kospi200"),
     path("screener/run/", views.ScreenerView.as_view(), name="screener"),
+    # Momentum factor endpoints
+    path("screener/momentum/", views.MomentumScreenerView.as_view(), name="momentum_screener"),
+    path(
+        "stock/<str:symbol>/momentum/",
+        views.MomentumScoreView.as_view(),
+        name="momentum_score",
+    ),
     # Search endpoint
     path("search/", views.search_stocks, name="search"),
     # User data endpoints

@@ -5,11 +5,11 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 
 from quant.data import DataFetcher, Kospi200
-from quant.factors import RSI, BollingerBands, Stochastic
+from quant.factors import RSI, BollingerBands, MomentumFactor, Stochastic
 from quant.models import LPPL
 
 from .lppl_cache_service import LPPLCacheService
-from .models import StockCache, StockPrice
+from .models import MomentumFactorScore, StockCache, StockPrice
 from .sync_service import StockSyncService
 
 
@@ -441,6 +441,251 @@ class StockService:
                 values["stoch_d"] = round(float(row["stoch_d"]), 2)
 
         return values
+
+    def run_momentum_screener(
+        self,
+        signal_filter: int | None = None,
+        min_score: float | None = None,
+        max_score: float | None = None,
+        state_filter: str | None = None,
+        force_recompute: bool = False,
+    ) -> list[dict]:
+        """
+        Run momentum factor screener on KOSPI200 stocks.
+
+        Calculates composite momentum score using 11 technical indicators
+        and saves results to database.
+
+        Args:
+            signal_filter: Filter by signal (1=buy, -1=sell, None=all)
+            min_score: Minimum momentum score filter
+            max_score: Maximum momentum score filter
+            state_filter: Filter by momentum state (e.g., 'BULLISH', 'BEARISH')
+            force_recompute: If True, recompute even if cached
+
+        Returns:
+            List of stocks with momentum scores, sorted by score descending
+        """
+        stocks = self.get_kospi200_list()
+        momentum_factor = MomentumFactor()
+        today = date.today()
+
+        results = []
+        for stock in stocks:
+            try:
+                symbol = stock["symbol"]
+
+                # Check for cached score if not forcing recompute
+                if not force_recompute:
+                    cached = self._get_cached_momentum_score(symbol, today)
+                    if cached:
+                        # Apply filters to cached result
+                        if self._passes_momentum_filters(
+                            cached, signal_filter, min_score, max_score, state_filter
+                        ):
+                            results.append(cached)
+                        continue
+
+                # Get stock data (at least 60 days for reliable indicators)
+                df = self.get_stock_data(symbol)
+                if df.empty or len(df) < 60:
+                    continue
+
+                # Calculate momentum score
+                score_result = momentum_factor.calculate(df)
+
+                # Get latest price
+                latest_price = float(df["close"].iloc[-1])
+
+                # Save to database
+                self._save_momentum_score(symbol, today, score_result, latest_price)
+
+                # Format result
+                result_item = {
+                    "symbol": symbol,
+                    "name": stock["name"],
+                    "price": latest_price,
+                    "total_score": score_result["total_score"],
+                    "signal": score_result["signal"],
+                    "state": score_result["state"],
+                    "trend_score": score_result["category_scores"]["trend"],
+                    "oscillator_score": score_result["category_scores"]["oscillator"],
+                    "volume_score": score_result["category_scores"]["volume"],
+                    "indicator_scores": score_result["indicator_scores"],
+                }
+
+                # Apply filters
+                if self._passes_momentum_filters(
+                    result_item, signal_filter, min_score, max_score, state_filter
+                ):
+                    results.append(result_item)
+
+            except Exception:
+                # Skip stocks that fail to load
+                continue
+
+        # Sort by total score descending
+        results.sort(key=lambda x: x.get("total_score") or 0, reverse=True)
+
+        return results
+
+    def _get_cached_momentum_score(self, symbol: str, analysis_date: date) -> dict | None:
+        """Get cached momentum score if available."""
+        try:
+            cached = MomentumFactorScore.objects.get(
+                stock_id=symbol,
+                analysis_date=analysis_date,
+            )
+            stock = cached.stock
+            return {
+                "symbol": symbol,
+                "name": stock.name,
+                "price": float(cached.latest_price) if cached.latest_price else None,
+                "total_score": cached.total_score,
+                "signal": cached.signal,
+                "state": cached.state,
+                "trend_score": cached.trend_score,
+                "oscillator_score": cached.oscillator_score,
+                "volume_score": cached.volume_score,
+                "indicator_scores": {
+                    "RSI": cached.rsi_score,
+                    "MACD": cached.macd_score,
+                    "ADX": cached.adx_score,
+                    "ROC": cached.roc_score,
+                    "Stochastic": cached.stochastic_score,
+                    "CCI": cached.cci_score,
+                    "WilliamsR": cached.williams_r_score,
+                    "BollingerBands": cached.bb_score,
+                    "MFI": cached.mfi_score,
+                    "OBV": cached.obv_score,
+                    "VolumeMA": cached.volume_ma_score,
+                },
+                "cached": True,
+            }
+        except MomentumFactorScore.DoesNotExist:
+            return None
+
+    def _save_momentum_score(
+        self,
+        symbol: str,
+        analysis_date: date,
+        score_result: dict,
+        latest_price: float,
+    ) -> MomentumFactorScore:
+        """Save momentum score to database."""
+        # Ensure stock exists
+        stock, _ = StockCache.objects.get_or_create(
+            symbol=symbol,
+            defaults={"name": symbol, "market": "KOSPI"},
+        )
+
+        indicator_scores = score_result.get("indicator_scores", {})
+
+        score, _ = MomentumFactorScore.objects.update_or_create(
+            stock=stock,
+            analysis_date=analysis_date,
+            defaults={
+                "total_score": score_result.get("total_score"),
+                "signal": score_result.get("signal", 0),
+                "state": score_result.get("state", "NEUTRAL"),
+                "trend_score": score_result["category_scores"].get("trend"),
+                "oscillator_score": score_result["category_scores"].get("oscillator"),
+                "volume_score": score_result["category_scores"].get("volume"),
+                "rsi_score": indicator_scores.get("RSI"),
+                "macd_score": indicator_scores.get("MACD"),
+                "adx_score": indicator_scores.get("ADX"),
+                "roc_score": indicator_scores.get("ROC"),
+                "stochastic_score": indicator_scores.get("Stochastic"),
+                "cci_score": indicator_scores.get("CCI"),
+                "williams_r_score": indicator_scores.get("WilliamsR"),
+                "bb_score": indicator_scores.get("BollingerBands"),
+                "mfi_score": indicator_scores.get("MFI"),
+                "obv_score": indicator_scores.get("OBV"),
+                "volume_ma_score": indicator_scores.get("VolumeMA"),
+                "latest_price": latest_price,
+            },
+        )
+        return score
+
+    def _passes_momentum_filters(
+        self,
+        item: dict,
+        signal_filter: int | None,
+        min_score: float | None,
+        max_score: float | None,
+        state_filter: str | None,
+    ) -> bool:
+        """Check if item passes all momentum filters."""
+        # Signal filter
+        if signal_filter is not None and item.get("signal") != signal_filter:
+            return False
+
+        # Score range filter
+        total_score = item.get("total_score")
+        if total_score is not None:
+            if min_score is not None and total_score < min_score:
+                return False
+            if max_score is not None and total_score > max_score:
+                return False
+
+        # State filter
+        if state_filter is not None and item.get("state") != state_filter:
+            return False
+
+        return True
+
+    def get_momentum_score(self, symbol: str, force_recompute: bool = False) -> dict:
+        """
+        Get momentum factor score for a single stock.
+
+        Args:
+            symbol: Stock ticker symbol
+            force_recompute: If True, recompute even if cached
+
+        Returns:
+            Dict with momentum score and details
+        """
+        today = date.today()
+
+        # Check cache first
+        if not force_recompute:
+            cached = self._get_cached_momentum_score(symbol, today)
+            if cached:
+                return cached
+
+        # Get stock data
+        df = self.get_stock_data(symbol)
+        if df.empty or len(df) < 60:
+            raise ValueError(
+                f"Insufficient data for momentum analysis. "
+                f"Need at least 60 days, got {len(df)} days."
+            )
+
+        # Calculate momentum score
+        momentum_factor = MomentumFactor()
+        score_result = momentum_factor.calculate(df)
+
+        # Get latest price
+        latest_price = float(df["close"].iloc[-1])
+
+        # Save to database
+        self._save_momentum_score(symbol, today, score_result, latest_price)
+
+        # Get stock info
+        stock_info = self.get_stock_info(symbol) or {"symbol": symbol, "name": symbol}
+
+        return {
+            "symbol": symbol,
+            "name": stock_info["name"],
+            "price": latest_price,
+            "total_score": score_result["total_score"],
+            "signal": score_result["signal"],
+            "state": score_result["state"],
+            "description": momentum_factor.get_score_description(score_result["total_score"]),
+            "category_scores": score_result["category_scores"],
+            "indicator_scores": score_result["indicator_scores"],
+            "cached": False,
+        }
 
     def analyze_bubble(
         self,

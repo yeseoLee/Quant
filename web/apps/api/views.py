@@ -1,7 +1,6 @@
 """API views for stock data."""
 
 import json
-from datetime import datetime
 
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -211,6 +210,76 @@ class BubbleAnalysisView(View):
                 {"error": f"예상치 못한 오류가 발생했습니다: {str(e)}"},
                 status=500
             )
+
+
+class MomentumScreenerView(View):
+    """API endpoint for momentum factor screening."""
+
+    def get(self, request):
+        """
+        Screen KOSPI200 stocks by momentum factor score.
+
+        Query parameters:
+            signal: Filter by signal (1=buy, -1=sell) (optional)
+            min_score: Minimum momentum score (0-100) (optional)
+            max_score: Maximum momentum score (0-100) (optional)
+            state: Filter by momentum state (optional)
+                   Values: VERY_STRONG_BULLISH, BULLISH, SLIGHTLY_BULLISH,
+                          NEUTRAL, SLIGHTLY_BEARISH, BEARISH, VERY_STRONG_BEARISH
+            force: If "true", bypass cache and recompute (optional)
+        """
+        signal_filter = request.GET.get("signal")
+        min_score = request.GET.get("min_score")
+        max_score = request.GET.get("max_score")
+        state_filter = request.GET.get("state")
+        force_recompute = request.GET.get("force", "").lower() == "true"
+
+        # Parse parameters
+        if signal_filter:
+            signal_filter = int(signal_filter)
+        if min_score:
+            min_score = float(min_score)
+        if max_score:
+            max_score = float(max_score)
+
+        service = StockService()
+        try:
+            results = service.run_momentum_screener(
+                signal_filter=signal_filter,
+                min_score=min_score,
+                max_score=max_score,
+                state_filter=state_filter,
+                force_recompute=force_recompute,
+            )
+            return JsonResponse({
+                "factor": "momentum",
+                "count": len(results),
+                "results": results,
+            })
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+
+class MomentumScoreView(View):
+    """API endpoint for single stock momentum score."""
+
+    def get(self, request, symbol):
+        """
+        Get momentum factor score for a single stock.
+
+        Query parameters:
+            force: If "true", bypass cache and recompute (optional)
+        """
+        force_recompute = request.GET.get("force", "").lower() == "true"
+
+        service = StockService()
+        try:
+            result = service.get_momentum_score(symbol, force_recompute=force_recompute)
+            return JsonResponse(result)
+        except ValueError as e:
+            return JsonResponse({"error": str(e)}, status=400)
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
 
 class WatchlistAPIView(View):
