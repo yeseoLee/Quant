@@ -34,6 +34,8 @@ urlpatterns = [
         views.MomentumScoreView.as_view(),
         name="momentum_score",
     ),
+    # Market indices
+    path("indices/", views.MarketIndicesView.as_view(), name="market_indices"),
     # Search endpoint
     path("search/", views.search_stocks, name="search"),
     # User data endpoints

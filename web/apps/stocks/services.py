@@ -4,7 +4,7 @@ from datetime import date, datetime, timedelta
 
 import pandas as pd
 
-from quant.data import DataFetcher, Kospi200
+from quant.data import DataFetcher, Kosdaq150, Kospi200
 from quant.factors import RSI, BollingerBands, MomentumFactor, Stochastic
 from quant.models import LPPL
 
@@ -19,6 +19,7 @@ class StockService:
     def __init__(self):
         self._fetcher = DataFetcher()
         self._kospi200 = Kospi200()
+        self._kosdaq150 = Kosdaq150()
         self._sync_service = StockSyncService()
         self._lppl_cache = LPPLCacheService()
         self._factors = {
@@ -257,7 +258,7 @@ class StockService:
         """
         Get list of KOSPI200 constituent stocks.
 
-        First tries to get from database, falls back to external API.
+        First tries to get from database, falls back to syncing constituents.
 
         Returns:
             List of dicts with symbol, name, and other info
@@ -267,35 +268,29 @@ class StockService:
         if stocks.exists():
             return [{"symbol": s.symbol, "name": s.name} for s in stocks]
 
-        # Fall back to external API
-        df = self._kospi200.get_constituents()
+        # Sync constituents to database and retry
+        self._sync_service.sync_kospi200_constituents()
+        stocks = StockCache.objects.filter(is_kospi200=True).order_by("symbol")
+        return [{"symbol": s.symbol, "name": s.name} for s in stocks]
 
-        # Find the code and name columns
-        code_col = None
-        name_col = None
+    def get_kosdaq150_list(self) -> list[dict]:
+        """
+        Get list of KOSDAQ150 constituent stocks.
 
-        for col in ["Code", "Symbol", "종목코드"]:
-            if col in df.columns:
-                code_col = col
-                break
+        First tries to get from database, falls back to syncing constituents.
 
-        for col in ["Name", "종목명", "회사명"]:
-            if col in df.columns:
-                name_col = col
-                break
+        Returns:
+            List of dicts with symbol, name, and other info
+        """
+        # Try database first
+        stocks = StockCache.objects.filter(is_kosdaq150=True).order_by("symbol")
+        if stocks.exists():
+            return [{"symbol": s.symbol, "name": s.name} for s in stocks]
 
-        if code_col is None:
-            raise ValueError("Cannot find stock code column")
-
-        result = []
-        for _, row in df.iterrows():
-            item = {
-                "symbol": row[code_col],
-                "name": row[name_col] if name_col else row[code_col],
-            }
-            result.append(item)
-
-        return result
+        # Sync constituents to database and retry
+        self._sync_service.sync_kosdaq150_constituents()
+        stocks = StockCache.objects.filter(is_kosdaq150=True).order_by("symbol")
+        return [{"symbol": s.symbol, "name": s.name} for s in stocks]
 
     def get_stock_info(self, symbol: str) -> dict | None:
         """
@@ -444,6 +439,7 @@ class StockService:
 
     def run_momentum_screener(
         self,
+        market: str = "KOSPI",
         signal_filter: int | None = None,
         min_score: float | None = None,
         max_score: float | None = None,
@@ -451,12 +447,13 @@ class StockService:
         force_recompute: bool = False,
     ) -> list[dict]:
         """
-        Run momentum factor screener on KOSPI200 stocks.
+        Run momentum factor screener on KOSPI200 or KOSDAQ150 stocks.
 
         Calculates composite momentum score using 11 technical indicators
         and saves results to database.
 
         Args:
+            market: Market to screen ("KOSPI" or "KOSDAQ")
             signal_filter: Filter by signal (1=buy, -1=sell, None=all)
             min_score: Minimum momentum score filter
             max_score: Maximum momentum score filter
@@ -466,7 +463,10 @@ class StockService:
         Returns:
             List of stocks with momentum scores, sorted by score descending
         """
-        stocks = self.get_kospi200_list()
+        if market == "KOSDAQ":
+            stocks = self.get_kosdaq150_list()
+        else:
+            stocks = self.get_kospi200_list()
         momentum_factor = MomentumFactor()
         today = date.today()
 

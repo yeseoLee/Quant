@@ -9,6 +9,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET
 
+from apps.stocks.models import MarketIndex
 from apps.stocks.services import StockService
 
 
@@ -58,9 +59,7 @@ class IndicatorView(View):
 
         service = StockService()
         try:
-            data = service.get_indicator_data(
-                symbol, indicator, params, start_date, end_date
-            )
+            data = service.get_indicator_data(symbol, indicator, params, start_date, end_date)
             return JsonResponse({"symbol": symbol, **data})
         except ValueError as e:
             return JsonResponse({"error": str(e)}, status=400)
@@ -134,9 +133,7 @@ class ScreenerView(View):
         service = StockService()
         try:
             results = service.run_screener(indicator, params, signal_filter)
-            return JsonResponse(
-                {"indicator": indicator, "count": len(results), "results": results}
-            )
+            return JsonResponse({"indicator": indicator, "count": len(results), "results": results})
         except ValueError as e:
             return JsonResponse({"error": str(e)}, status=400)
         except Exception as e:
@@ -196,20 +193,14 @@ class BubbleAnalysisView(View):
             )
             return JsonResponse(result)
         except ValueError as e:
-            return JsonResponse(
-                {"error": f"데이터 부족: {str(e)}"},
-                status=400
-            )
+            return JsonResponse({"error": f"데이터 부족: {str(e)}"}, status=400)
         except RuntimeError as e:
             return JsonResponse(
                 {"error": str(e)},
-                status=422  # Unprocessable Entity
+                status=422,  # Unprocessable Entity
             )
         except Exception as e:
-            return JsonResponse(
-                {"error": f"예상치 못한 오류가 발생했습니다: {str(e)}"},
-                status=500
-            )
+            return JsonResponse({"error": f"예상치 못한 오류가 발생했습니다: {str(e)}"}, status=500)
 
 
 class MomentumScreenerView(View):
@@ -217,9 +208,10 @@ class MomentumScreenerView(View):
 
     def get(self, request):
         """
-        Screen KOSPI200 stocks by momentum factor score.
+        Screen KOSPI200 or KOSDAQ150 stocks by momentum factor score.
 
         Query parameters:
+            market: Market to screen (KOSPI or KOSDAQ, default: KOSPI) (optional)
             signal: Filter by signal (1=buy, -1=sell) (optional)
             min_score: Minimum momentum score (0-100) (optional)
             max_score: Maximum momentum score (0-100) (optional)
@@ -228,6 +220,7 @@ class MomentumScreenerView(View):
                           NEUTRAL, SLIGHTLY_BEARISH, BEARISH, VERY_STRONG_BEARISH
             force: If "true", bypass cache and recompute (optional)
         """
+        market = request.GET.get("market", "KOSPI")
         signal_filter = request.GET.get("signal")
         min_score = request.GET.get("min_score")
         max_score = request.GET.get("max_score")
@@ -245,17 +238,21 @@ class MomentumScreenerView(View):
         service = StockService()
         try:
             results = service.run_momentum_screener(
+                market=market,
                 signal_filter=signal_filter,
                 min_score=min_score,
                 max_score=max_score,
                 state_filter=state_filter,
                 force_recompute=force_recompute,
             )
-            return JsonResponse({
-                "factor": "momentum",
-                "count": len(results),
-                "results": results,
-            })
+            return JsonResponse(
+                {
+                    "market": market,
+                    "factor": "momentum",
+                    "count": len(results),
+                    "results": results,
+                }
+            )
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
 
@@ -280,6 +277,56 @@ class MomentumScoreView(View):
             return JsonResponse({"error": str(e)}, status=400)
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
+
+
+class MarketIndicesView(View):
+    """API endpoint for market index data."""
+
+    def get(self, request):
+        """Return latest index data grouped by category."""
+        from django.db.models import Max
+
+        # Get the latest date for each symbol
+        latest_dates = MarketIndex.objects.values("symbol").annotate(latest_date=Max("date"))
+
+        results = {"KRX": [], "US": [], "GLOBAL": []}
+
+        for entry in latest_dates:
+            symbol = entry["symbol"]
+            latest_date = entry["latest_date"]
+
+            latest = MarketIndex.objects.get(symbol=symbol, date=latest_date)
+
+            # Get previous day's close for change calculation
+            previous = (
+                MarketIndex.objects.filter(symbol=symbol, date__lt=latest_date)
+                .order_by("-date")
+                .first()
+            )
+
+            prev_close = float(previous.close) if previous else None
+            current_close = float(latest.close)
+
+            if prev_close and prev_close != 0:
+                change = current_close - prev_close
+                change_pct = (change / prev_close) * 100
+            else:
+                change = 0
+                change_pct = 0
+
+            item = {
+                "symbol": symbol,
+                "name": latest.name,
+                "date": latest.date.strftime("%Y-%m-%d"),
+                "close": current_close,
+                "change": round(change, 2),
+                "change_pct": round(change_pct, 2),
+            }
+
+            if latest.category in results:
+                results[latest.category].append(item)
+
+        return JsonResponse({"indices": results})
 
 
 class WatchlistAPIView(View):
@@ -324,11 +371,13 @@ class WatchlistAPIView(View):
                 defaults={"name": name, "notes": notes},
             )
 
-            return JsonResponse({
-                "success": True,
-                "created": created,
-                "id": item.pk,
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "created": created,
+                    "id": item.pk,
+                }
+            )
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except Exception as e:
@@ -347,14 +396,14 @@ class WatchlistAPIView(View):
             if not symbol:
                 return JsonResponse({"error": "symbol is required"}, status=400)
 
-            deleted, _ = Watchlist.objects.filter(
-                user=request.user, symbol=symbol
-            ).delete()
+            deleted, _ = Watchlist.objects.filter(user=request.user, symbol=symbol).delete()
 
-            return JsonResponse({
-                "success": True,
-                "deleted": deleted > 0,
-            })
+            return JsonResponse(
+                {
+                    "success": True,
+                    "deleted": deleted > 0,
+                }
+            )
         except json.JSONDecodeError:
             return JsonResponse({"error": "Invalid JSON"}, status=400)
         except Exception as e:
