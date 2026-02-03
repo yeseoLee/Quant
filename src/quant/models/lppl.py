@@ -6,11 +6,10 @@ Reference: Sornette, D. (2003). "Why Stock Markets Crash: Critical Events in Com
 """
 
 import warnings
-from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-from scipy.optimize import differential_evolution, minimize
+from scipy.optimize import differential_evolution
 
 
 class LPPL:
@@ -33,10 +32,10 @@ class LPPL:
 
     def __init__(self):
         """Initialize LPPL model."""
-        self.params: Optional[Dict[str, float]] = None
+        self.params: dict[str, float] | None = None
         self.fit_success = False
         self.observations = 0
-        self.multi_window_results: Optional[list] = None
+        self.multi_window_results: list | None = None
 
     @staticmethod
     def lppl_function(t: np.ndarray, tc: float, A: float, B: float, C: float,
@@ -63,7 +62,7 @@ class LPPL:
 
         return A + B * (dt ** m) + C * (dt ** m) * np.cos(omega * np.log(dt) + phi)
 
-    def fit(self, prices: pd.Series, max_iter: int = 5000) -> Dict[str, float]:
+    def fit(self, prices: pd.Series, max_iter: int = 5000) -> dict[str, float]:
         """
         Fit LPPL model to price data using differential evolution.
 
@@ -187,8 +186,8 @@ class LPPL:
         )
 
     def diagnose_bubble(
-        self, prices: pd.Series, current_index: Optional[int] = None
-    ) -> Dict[str, any]:
+        self, prices: pd.Series, current_index: int | None = None
+    ) -> dict[str, any]:
         """
         Diagnose if there's a bubble using LPPL indicators.
 
@@ -290,7 +289,7 @@ class LPPL:
 
     def forecast(
         self, prices: pd.Series, forecast_days: int = 60
-    ) -> Tuple[pd.Series, pd.Series]:
+    ) -> tuple[pd.Series, pd.Series]:
         """
         Forecast future prices using fitted LPPL model.
 
@@ -336,7 +335,7 @@ class LPPL:
         return fitted, forecast_series
 
     def _check_bubble_conditions(
-        self, params: Dict[str, float], current_index: int
+        self, params: dict[str, float], current_index: int
     ) -> bool:
         """
         Check if fitted parameters satisfy bubble conditions.
@@ -374,7 +373,7 @@ class LPPL:
         max_window: int = 750,
         step: int = 25,
         max_iter: int = 2000,
-    ) -> Dict[str, any]:
+    ) -> dict[str, any]:
         """
         Fit LPPL model on multiple time windows and calculate confidence.
 
