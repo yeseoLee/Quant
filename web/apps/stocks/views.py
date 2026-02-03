@@ -2,13 +2,13 @@
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.views.generic import TemplateView
 
 from apps.accounts.models import Watchlist
 
+from .models import MarketIndex
 from .services import StockService
 
 
@@ -19,20 +19,62 @@ class DashboardView(TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        service = StockService()
 
-        # Get KOSPI200 stocks for quick access
+        # Get market index data grouped by category
         try:
-            stocks = service.get_kospi200_list()[:20]  # Top 20
-            context["popular_stocks"] = stocks
+            context["market_indices"] = self._get_market_indices()
         except Exception:
-            context["popular_stocks"] = []
+            context["market_indices"] = {}
 
         # Get user's watchlist if authenticated
         if self.request.user.is_authenticated:
             context["watchlist"] = Watchlist.objects.filter(user=self.request.user)[:5]
 
         return context
+
+    def _get_market_indices(self) -> dict:
+        """Get latest market index data grouped by category."""
+        from django.db.models import Max
+
+        latest_dates = MarketIndex.objects.values("symbol").annotate(latest_date=Max("date"))
+
+        results = {"KRX": [], "US": [], "GLOBAL": []}
+
+        for entry in latest_dates:
+            symbol = entry["symbol"]
+            latest_date = entry["latest_date"]
+
+            latest = MarketIndex.objects.get(symbol=symbol, date=latest_date)
+
+            previous = (
+                MarketIndex.objects.filter(symbol=symbol, date__lt=latest_date)
+                .order_by("-date")
+                .first()
+            )
+
+            prev_close = float(previous.close) if previous else None
+            current_close = float(latest.close)
+
+            if prev_close and prev_close != 0:
+                change = current_close - prev_close
+                change_pct = (change / prev_close) * 100
+            else:
+                change = 0
+                change_pct = 0
+
+            item = {
+                "symbol": symbol,
+                "name": latest.name,
+                "date": latest.date.strftime("%Y-%m-%d"),
+                "close": current_close,
+                "change": round(change, 2),
+                "change_pct": round(change_pct, 2),
+            }
+
+            if latest.category in results:
+                results[latest.category].append(item)
+
+        return results
 
 
 class StockDetailView(TemplateView):

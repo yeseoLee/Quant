@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}KOSPI200 모멘텀 스크리너 - Korean Stock Quant{% endblock %}
+{% block title %}주식 모멘텀 스크리너 - Korean Stock Quant{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <h2 class="mb-4"><i class="bi bi-funnel"></i> KOSPI 200 모멘텀 스크리너</h2>
+    <h2 class="mb-4"><i class="bi bi-funnel"></i> 주식 모멘텀 스크리너</h2>
 
     <div class="row">
         <!-- Filter Panel -->
@@ -14,6 +14,17 @@
                     <i class="bi bi-sliders"></i> 필터 설정
                 </div>
                 <div class="card-body">
+                    <!-- Market selector -->
+                    <div class="mb-3">
+                        <label class="form-label"><i class="bi bi-bar-chart-line"></i> 시장 선택</label>
+                        <select class="form-select" id="marketFilter">
+                            <option value="KOSPI" selected>KOSPI 200</option>
+                            <option value="KOSDAQ">KOSDAQ 150</option>
+                        </select>
+                    </div>
+
+                    <hr>
+
                     <div class="mb-3">
                         <label class="form-label">신호 필터</label>
                         <select class="form-select" id="signalFilter">
@@ -107,7 +118,7 @@
                         <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-2 text-muted">스크리닝 중... (KOSPI 200 전 종목 분석)</p>
+                        <p class="mt-2 text-muted" id="loading-message">스크리닝 중...</p>
                         <p class="small text-muted">첫 실행 시 시간이 소요될 수 있습니다.</p>
                     </div>
 
@@ -152,6 +163,7 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const marketFilter = document.getElementById('marketFilter');
     const signalFilter = document.getElementById('signalFilter');
     const stateFilter = document.getElementById('stateFilter');
     const minScore = document.getElementById('minScore');
@@ -164,17 +176,23 @@ document.addEventListener('DOMContentLoaded', function() {
         // Build query params
         let params = new URLSearchParams();
 
+        const market = marketFilter.value;
         const signal = signalFilter.value;
         const state = stateFilter.value;
         const minVal = minScore.value;
         const maxVal = maxScore.value;
         const force = forceRecompute.checked;
 
+        if (market) params.append('market', market);
         if (signal) params.append('signal', signal);
         if (state) params.append('state', state);
         if (minVal) params.append('min_score', minVal);
         if (maxVal) params.append('max_score', maxVal);
         if (force) params.append('force', 'true');
+
+        // Update loading message
+        const marketName = market === 'KOSDAQ' ? 'KOSDAQ 150' : 'KOSPI 200';
+        document.getElementById('loading-message').textContent = `스크리닝 중... (${marketName} 전 종목 분석)`;
 
         // Show loading
         document.getElementById('screener-placeholder').style.display = 'none';
