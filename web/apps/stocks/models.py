@@ -21,6 +21,7 @@ class StockCache(models.Model):
 
     # KOSPI200 sync fields
     is_kospi200 = models.BooleanField(default=False, verbose_name="KOSPI200 여부")
+    is_kosdaq150 = models.BooleanField(default=False, verbose_name="KOSDAQ150 여부")
     last_price_date = models.DateField(null=True, blank=True, verbose_name="최종 가격 날짜")
     last_sync_at = models.DateTimeField(null=True, blank=True, verbose_name="마지막 동기화 시간")
     sync_status = models.CharField(
@@ -194,6 +195,43 @@ class LPPLWindowResult(models.Model):
     def __str__(self):
         status = "버블" if self.is_bubble else ("성공" if self.success else "실패")
         return f"윈도우 {self.window_size}일 - {status}"
+
+
+class MarketIndex(models.Model):
+    """Daily OHLCV data for market indices."""
+
+    CATEGORY_CHOICES = [
+        ("KRX", "한국"),
+        ("US", "미국"),
+        ("GLOBAL", "글로벌"),
+    ]
+
+    symbol = models.CharField(max_length=20, verbose_name="심볼")
+    name = models.CharField(max_length=100, verbose_name="지수명")
+    category = models.CharField(
+        max_length=10,
+        choices=CATEGORY_CHOICES,
+        verbose_name="카테고리",
+    )
+    date = models.DateField(verbose_name="날짜")
+    open = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="시가")
+    high = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="고가")
+    low = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="저가")
+    close = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="종가")
+    volume = models.BigIntegerField(null=True, blank=True, verbose_name="거래량")
+
+    class Meta:
+        verbose_name = "시장 지수"
+        verbose_name_plural = "시장 지수"
+        unique_together = ["symbol", "date"]
+        indexes = [
+            models.Index(fields=["symbol", "-date"]),
+            models.Index(fields=["category"]),
+        ]
+        ordering = ["-date"]
+
+    def __str__(self):
+        return f"{self.name} ({self.symbol}) - {self.date}"
 
 
 class MomentumFactorScore(models.Model):
