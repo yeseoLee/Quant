@@ -487,7 +487,7 @@ class StockSyncService:
         "N225": ("니케이 225", "GLOBAL"),
         "HSI": ("항셍", "GLOBAL"),
         "FTSE": ("FTSE 100", "GLOBAL"),
-        "DAX": ("DAX", "GLOBAL"),
+        "GDAXI": ("DAX", "GLOBAL"),
     }
 
     def sync_market_indices(self) -> int:
