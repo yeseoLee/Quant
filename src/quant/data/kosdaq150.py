@@ -1,21 +1,21 @@
-"""KOSPI 200 index constituents management."""
+"""KOSDAQ 150 index constituents management."""
 
 import FinanceDataReader as fdr
 import pandas as pd
 
 
-class Kospi200:
-    """Manage KOSPI 200 index constituents."""
+class Kosdaq150:
+    """Manage KOSDAQ 150 index constituents."""
 
     def __init__(self):
         self._constituents: pd.DataFrame | None = None
 
     def get_constituents(self, refresh: bool = False) -> pd.DataFrame:
         """
-        Get KOSPI 200 constituent stocks.
+        Get KOSDAQ 150 constituent stocks.
 
         Tries pykrx first for actual index constituents,
-        falls back to top 200 KOSPI stocks by market cap from FinanceDataReader.
+        falls back to top 150 KOSDAQ stocks by market cap from FinanceDataReader.
 
         Args:
             refresh: Force refresh from source
@@ -28,17 +28,17 @@ class Kospi200:
         return self._constituents
 
     def _fetch_constituents(self) -> pd.DataFrame:
-        """Fetch KOSPI 200 constituents from available sources."""
+        """Fetch KOSDAQ 150 constituents from available sources."""
         # Try pykrx first
         df = self._from_pykrx()
         if df is not None and not df.empty:
             return df
 
-        # Fallback: top 200 KOSPI stocks by market cap
-        return self._from_fdr_top200()
+        # Fallback: top 150 KOSDAQ stocks by market cap
+        return self._from_fdr_top150()
 
     def _from_pykrx(self) -> pd.DataFrame | None:
-        """Get KOSPI 200 constituents from pykrx."""
+        """Get KOSDAQ 150 constituents from pykrx."""
         try:
             from datetime import date, timedelta
 
@@ -49,41 +49,46 @@ class Kospi200:
                 target_date = today - timedelta(days=days_back)
                 date_str = target_date.strftime("%Y%m%d")
 
-                tickers = pykrx_stock.get_index_portfolio_deposit_file("1028", date_str)
+                for index_code in ["2203", "코스닥 150"]:
+                    try:
+                        tickers = pykrx_stock.get_index_portfolio_deposit_file(
+                            index_code, date_str
+                        )
+                        if isinstance(tickers, pd.DataFrame):
+                            if tickers.empty:
+                                continue
+                            ticker_list = tickers.index.tolist()
+                        else:
+                            ticker_list = list(tickers) if tickers else []
 
-                if isinstance(tickers, pd.DataFrame):
-                    if tickers.empty:
+                        if ticker_list:
+                            rows = []
+                            for ticker in ticker_list:
+                                try:
+                                    name = pykrx_stock.get_market_ticker_name(ticker)
+                                except Exception:
+                                    name = ticker
+                                rows.append({"Code": ticker, "Name": name})
+                            return pd.DataFrame(rows)
+                    except Exception:
                         continue
-                    ticker_list = tickers.index.tolist()
-                else:
-                    ticker_list = list(tickers) if tickers else []
-
-                if ticker_list:
-                    rows = []
-                    for ticker in ticker_list:
-                        try:
-                            name = pykrx_stock.get_market_ticker_name(ticker)
-                        except Exception:
-                            name = ticker
-                        rows.append({"Code": ticker, "Name": name})
-                    return pd.DataFrame(rows)
             return None
         except ImportError:
             return None
         except Exception:
             return None
 
-    def _from_fdr_top200(self) -> pd.DataFrame:
-        """Get top 200 KOSPI stocks by market cap from FinanceDataReader."""
-        df = fdr.StockListing("KOSPI")
+    def _from_fdr_top150(self) -> pd.DataFrame:
+        """Get top 150 KOSDAQ stocks by market cap from FinanceDataReader."""
+        df = fdr.StockListing("KOSDAQ")
         if "Marcap" in df.columns and "Code" in df.columns:
             df_sorted = df.sort_values("Marcap", ascending=False)
-            return df_sorted.head(200).reset_index(drop=True)
-        return df.head(200).reset_index(drop=True)
+            return df_sorted.head(150).reset_index(drop=True)
+        return df.head(150).reset_index(drop=True)
 
     def get_symbols(self, refresh: bool = False) -> list[str]:
         """
-        Get list of KOSPI 200 stock symbols.
+        Get list of KOSDAQ 150 stock symbols.
 
         Args:
             refresh: Force refresh from source
