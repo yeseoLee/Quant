@@ -8,7 +8,7 @@ import FinanceDataReader as fdr
 import pandas as pd
 from django.utils import timezone
 
-from .models import StockCache, StockPrice, SyncLog
+from .models import MarketIndex, StockCache, StockPrice, SyncLog
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +69,69 @@ def _get_kospi200_from_fdr() -> list[tuple[str, str]] | None:
         return None
     except Exception as e:
         logger.warning(f"FinanceDataReader fallback failed: {e}")
+        return None
+
+
+def _get_kosdaq150_from_pykrx() -> list[tuple[str, str]] | None:
+    """Try to get KOSDAQ150 constituents from pykrx."""
+    try:
+        from pykrx import stock as pykrx_stock
+
+        today = date.today()
+        # Try today and previous business days
+        for days_back in range(0, 10):
+            target_date = today - timedelta(days=days_back)
+            date_str = target_date.strftime("%Y%m%d")
+
+            # Try different possible index codes for KOSDAQ 150
+            # Common codes: "2203" for KOSDAQ 150, or Korean name
+            for index_code in ["2203", "코스닥 150"]:
+                try:
+                    tickers = pykrx_stock.get_index_portfolio_deposit_file(index_code, date_str)
+
+                    # pykrx returns DataFrame or list depending on version
+                    if isinstance(tickers, pd.DataFrame):
+                        if tickers.empty:
+                            continue
+                        ticker_list = tickers.index.tolist()
+                    else:
+                        ticker_list = list(tickers) if tickers else []
+
+                    if ticker_list:
+                        # Get names for each ticker
+                        result = []
+                        for ticker in ticker_list:
+                            try:
+                                name = pykrx_stock.get_market_ticker_name(ticker)
+                            except Exception:
+                                name = ticker
+                            result.append((ticker, name))
+                        return result
+                except Exception:
+                    continue
+
+        return None
+    except Exception as e:
+        logger.warning(f"pykrx failed for KOSDAQ150: {e}")
+        return None
+
+
+def _get_kosdaq150_from_fdr() -> list[tuple[str, str]] | None:
+    """Get top 150 KOSDAQ stocks by market cap from FinanceDataReader as fallback."""
+    try:
+        # Get all KOSDAQ stocks with market cap
+        df = fdr.StockListing("KOSDAQ")
+
+        # Sort by market cap and take top 150
+        # Marcap column contains market capitalization
+        if "Marcap" in df.columns and "Code" in df.columns and "Name" in df.columns:
+            df_sorted = df.sort_values("Marcap", ascending=False)
+            top_150 = df_sorted.head(150)
+            return [(row["Code"], row["Name"]) for _, row in top_150.iterrows()]
+
+        return None
+    except Exception as e:
+        logger.warning(f"FinanceDataReader fallback failed for KOSDAQ150: {e}")
         return None
 
 
@@ -133,6 +196,52 @@ class StockSyncService:
 
         except Exception as e:
             logger.error(f"Error syncing KOSPI200 constituents: {e}")
+            raise
+
+    def sync_kosdaq150_constituents(self) -> int:
+        """
+        Sync KOSDAQ150 constituent stocks.
+
+        Tries pykrx first, falls back to FinanceDataReader top 150 by market cap.
+
+        Returns:
+            Number of stocks updated/created
+        """
+        logger.info("Starting KOSDAQ150 constituents sync")
+
+        try:
+            # Try pykrx first
+            stocks = _get_kosdaq150_from_pykrx()
+
+            # Fallback to FinanceDataReader
+            if not stocks:
+                logger.info("pykrx unavailable, using FinanceDataReader top 150 by market cap")
+                stocks = _get_kosdaq150_from_fdr()
+
+            if not stocks:
+                logger.error("Could not fetch KOSDAQ150 constituents from any source")
+                return 0
+
+            # Reset all stocks to non-KOSDAQ150 first
+            StockCache.objects.filter(is_kosdaq150=True).update(is_kosdaq150=False)
+
+            updated_count = 0
+            for symbol, name in stocks:
+                StockCache.objects.update_or_create(
+                    symbol=symbol,
+                    defaults={
+                        "name": name,
+                        "market": "KOSDAQ",
+                        "is_kosdaq150": True,
+                    },
+                )
+                updated_count += 1
+
+            logger.info(f"KOSDAQ150 constituents sync completed: {updated_count} stocks")
+            return updated_count
+
+        except Exception as e:
+            logger.error(f"Error syncing KOSDAQ150 constituents: {e}")
             raise
 
     def sync_stock_prices(
@@ -298,6 +407,140 @@ class StockSyncService:
             logger.error(f"KOSPI200 sync failed: {e}")
             raise
 
+    def sync_all_kosdaq150(self, full_sync: bool = False) -> SyncLog:
+        """
+        Sync price data for all KOSDAQ150 stocks.
+
+        Args:
+            full_sync: If True, fetch full history for all stocks
+
+        Returns:
+            SyncLog instance with sync results
+        """
+        sync_type = "full" if full_sync else "incremental"
+        sync_log = SyncLog.objects.create(
+            sync_type=sync_type,
+            status="running",
+        )
+
+        try:
+            # First sync constituents
+            self.sync_kosdaq150_constituents()
+
+            # Get all KOSDAQ150 stocks
+            stocks = StockCache.objects.filter(is_kosdaq150=True)
+            sync_log.total_stocks = stocks.count()
+            sync_log.save(update_fields=["total_stocks"])
+
+            total_new_records = 0
+            processed = 0
+
+            for stock in stocks:
+                try:
+                    new_records = self.sync_stock_prices(stock.symbol, full_sync=full_sync)
+                    total_new_records += new_records
+                    processed += 1
+
+                    # Update progress periodically
+                    if processed % 10 == 0:
+                        sync_log.processed_stocks = processed
+                        sync_log.new_records = total_new_records
+                        sync_log.save(update_fields=["processed_stocks", "new_records"])
+                        logger.info(f"Progress: {processed}/{sync_log.total_stocks} stocks")
+
+                except Exception as e:
+                    logger.error(f"Error syncing {stock.symbol}: {e}")
+                    continue
+
+            # Finalize
+            sync_log.processed_stocks = processed
+            sync_log.new_records = total_new_records
+            sync_log.status = "completed"
+            sync_log.completed_at = timezone.now()
+            sync_log.save()
+
+            logger.info(
+                f"KOSDAQ150 sync completed: {processed} stocks, {total_new_records} new records"
+            )
+            return sync_log
+
+        except Exception as e:
+            sync_log.status = "failed"
+            sync_log.error_message = str(e)
+            sync_log.completed_at = timezone.now()
+            sync_log.save()
+            logger.error(f"KOSDAQ150 sync failed: {e}")
+            raise
+
+    # Market indices: symbol -> (name, category)
+    MARKET_INDICES = {
+        # KRX
+        "KS11": ("KOSPI", "KRX"),
+        "KQ11": ("KOSDAQ", "KRX"),
+        "KS200": ("KOSPI 200", "KRX"),
+        # US
+        "DJI": ("다우존스", "US"),
+        "IXIC": ("나스닥", "US"),
+        "S&P500": ("S&P 500", "US"),
+        # Global
+        "SSEC": ("상해종합", "GLOBAL"),
+        "N225": ("니케이 225", "GLOBAL"),
+        "HSI": ("항셍", "GLOBAL"),
+        "FTSE": ("FTSE 100", "GLOBAL"),
+        "DAX": ("DAX", "GLOBAL"),
+    }
+
+    def sync_market_indices(self) -> int:
+        """
+        Sync market index data for all tracked indices.
+
+        Fetches last 1 year of data from FinanceDataReader.
+
+        Returns:
+            Total number of new records created
+        """
+        logger.info("Starting market index sync")
+        start_date = self._today - timedelta(days=365)
+        total_new = 0
+
+        for symbol, (name, category) in self.MARKET_INDICES.items():
+            try:
+                df = fdr.DataReader(symbol, start_date, self._today)
+                if df.empty:
+                    logger.warning(f"No data for index {symbol}")
+                    continue
+
+                df.columns = df.columns.str.lower()
+                records = []
+
+                for idx, row in df.iterrows():
+                    price_date = idx.date() if hasattr(idx, "date") else idx
+                    records.append(
+                        MarketIndex(
+                            symbol=symbol,
+                            name=name,
+                            category=category,
+                            date=price_date,
+                            open=Decimal(str(row["open"])),
+                            high=Decimal(str(row["high"])),
+                            low=Decimal(str(row["low"])),
+                            close=Decimal(str(row["close"])),
+                            volume=int(row["volume"]) if pd.notna(row.get("volume")) else None,
+                        )
+                    )
+
+                if records:
+                    MarketIndex.objects.bulk_create(records, ignore_conflicts=True)
+                    total_new += len(records)
+                    logger.info(f"Synced {len(records)} records for index {symbol}")
+
+            except Exception as e:
+                logger.error(f"Error syncing index {symbol}: {e}")
+                continue
+
+        logger.info(f"Market index sync completed: {total_new} records")
+        return total_new
+
     def needs_daily_sync(self) -> bool:
         """
         Check if daily sync is needed.
@@ -328,15 +571,29 @@ class StockSyncService:
         """
         Run incremental sync if not already done today.
 
+        Syncs both KOSPI200 and KOSDAQ150 stocks.
+
         Returns:
-            SyncLog if sync was performed, None otherwise
+            SyncLog from KOSPI200 sync if sync was performed, None otherwise
         """
         if not self.needs_daily_sync():
             logger.info("Daily sync already completed, skipping")
             return None
 
         logger.info("Starting daily incremental sync")
-        return self.sync_all_kospi200(full_sync=False)
+        kospi_log = self.sync_all_kospi200(full_sync=False)
+
+        try:
+            self.sync_all_kosdaq150(full_sync=False)
+        except Exception as e:
+            logger.error(f"KOSDAQ150 daily sync failed: {e}")
+
+        try:
+            self.sync_market_indices()
+        except Exception as e:
+            logger.error(f"Market index daily sync failed: {e}")
+
+        return kospi_log
 
     def get_stock_prices_from_db(
         self,
